@@ -12,3 +12,25 @@
 实现visitReturnStmt 创建返回指令
 实现visitIdent 变量查找和加载
 实现visitCompUnit visitFuncDef visitBlock框架
+
+### 2026-05-01
+整理可用third-part部分
+类别	方法名	参数	返回值	状态
+内存分配	create_alloca	Type*	AllocaInst*	
+算术运算	create_iadd	Value*, Value*	BinaryInst*	
+算术运算	create_isub	Value*, Value*	BinaryInst*	
+算术运算	create_imul	Value*, Value*	BinaryInst*	
+算术运算	create_isdiv	Value*, Value*	BinaryInst*	
+算术运算	create_irem	Value*, Value*	BinaryInst*	
+比较运算	create_icmp_eq	Value*, Value*	CmpInst*	
+比较运算	create_icmp_ne	Value*, Value*	CmpInst*	
+比较运算	create_icmp_lt	Value*, Value*	CmpInst*	
+比较运算	create_icmp_le	Value*, Value*	CmpInst*	
+比较运算	create_icmp_gt	Value*, Value*	CmpInst*	
+比较运算	create_icmp_ge	Value*, Value*	CmpInst*	
+控制流	create_br	BasicBlock*	BranchInst*	
+控制流	create_cond_br	Value*, BasicBlock*, BasicBlock*	BranchInst*	
+内存访问	create_load	Value*	LoadInst*	
+内存访问	create_store	Value*, Value*	StoreInst*	
+返回	create_ret	Value*	ReturnInst*	
+返回	create_void_ret	无	ReturnInst*	
