@@ -29,6 +29,17 @@
 - 将浮点数规则调整为 `[0-9]+'.'[0-9]+`，和附录文法保持一致。
 - 额外支持了单独的 `!`，因为语法要求中有一元表达式 `!0`。
 - 用临时小程序做了词法冒烟测试，确认变量声明、浮点数、`if`、`return`、`!=`、`||`、`!` 等 token 可以正常识别。
+### 2026.5.6
+
+模块化测试部分做了临时方案：
+
+- 新增顶层 `Makefile`，先用于阶段测试，后面完整流程稳定后再整理正式构建脚本。
+- 新增 `tests/drivers/lexer_main.cpp`，用于单独测试词法分析阶段，输入 `.sy` 文件，输出临时格式 `token.tsv`。
+- 新增 `tests/drivers/parser_main.cpp`，用于单独测试语法分析阶段，输入 `token.tsv`，输出 `ast.txt` 和 `reduce.txt`。
+- 新增 `tests/drivers/ir_main.cpp`，用于单独测试中间代码生成阶段，输入 `ast.txt`，输出 `output.ll`。
+- 新增 `tests/drivers/driver_utils.h`，放置测试 driver 共用的文件读写、token 表读写、AST 文本读写工具函数。
+- 在 `README.md` 中补充了三阶段测试的输入输出约定和临时 Makefile 使用方法。
+- 已验证 `make lexer_test parser_test`、`make ir_test`、`make run-lexer` 可以执行；其中 Parser 目前还是占位实现，所以 `run-parser` 暂时只用于后续联调。
 
 接下来我的重点是继续做语法分析器，先把作业要求里 SLR 语法分析相关的内容完成。
 

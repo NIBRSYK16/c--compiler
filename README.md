@@ -40,6 +40,89 @@ C-- 支持：
 - `error.txt`：错误信息。
 - `run_info.txt`：本次运行信息。
 
+## 临时单阶段测试
+
+为了方便模块化开发，当前先提供一个临时 `Makefile`，分别测试词法、语法和 IR 三个阶段。后面三个阶段都完成后，再整理正式构建方式。
+
+### 阶段输入约定
+
+| 阶段 | 测试程序 | 输入 | 输出 |
+|---|---|---|---|
+| 词法分析 | `lexer_test` | `.sy` 源程序 | `token.tsv` |
+| 语法分析 | `parser_test` | `token.tsv` | `ast.txt`、`reduce.txt` |
+| 中间代码生成 | `ir_test` | `ast.txt` | `output.ll` |
+
+说明：
+
+- `token.tsv` 是临时测试格式，列为 `line column type grammar attr lexeme`，用于给 Parser 单独测试。
+- `ast.txt` 使用 `docs/AST_SPEC.md` 中的缩进格式，例如 `FuncDef value=main`。
+- 当前 Parser 还没实现时，`run-parser` 会正常编译，但运行会提示 Parser 未完成。
+
+### 编译
+
+```bash
+make lexer_test
+make parser_test
+make ir_test
+```
+
+也可以一次性编译三个临时测试程序：
+
+```bash
+make all
+```
+
+### 运行词法分析
+
+默认输入是 `tests/case1_ok/input.sy`：
+
+```bash
+make run-lexer
+```
+
+指定输入文件：
+
+```bash
+make run-lexer INPUT=tests/case1_ok/input.sy
+```
+
+输出默认写到：
+
+```text
+.tmp_build/token.tsv
+```
+
+### 运行语法分析
+
+```bash
+make run-parser
+```
+
+默认读取 `.tmp_build/token.tsv`，输出：
+
+```text
+.tmp_build/ast.txt
+.tmp_build/reduce.txt
+```
+
+### 运行中间代码生成
+
+```bash
+make run-ir
+```
+
+默认读取 `.tmp_build/ast.txt`，输出：
+
+```text
+.tmp_build/output.ll
+```
+
+清理临时编译和输出文件：
+
+```bash
+make clean-temp
+```
+
 ## 注意事项
 
 - 不使用 Lex/Yacc、ANTLR 等自动生成工具。
