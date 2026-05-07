@@ -45,66 +45,168 @@ namespace cminus
             }
             std::string generate(const ASTNode *root)
             {
+                // 调试部分
+                //  std::cerr << "=== DEBUG: Starting IR generation ===" << std::endl;
+                //  static int generateCount = 0;
+                //  generateCount++;
+                //  std::cerr << "DEBUG generate call #" << generateCount << std::endl;
+
                 if (!root)
                 {
+                    std::cerr << "ERROR: AST root is null" << std::endl;
                     throw std::runtime_error("AST root is null");
                 }
+                // 调试部分
+                // std::cerr << "DEBUG: Root node: name=" << root->name
+                //           << ", value=" << root->value
+                //           << ", children=" << root->children.size() << std::endl;
+
+                // 只调用一次reset()
                 reset(); // 重置状态支持多次调用
-                module = new Module("main");
-                builder = new IRBuilder(nullptr, module);
-                visit(root);
-                if (!module)
+
+                if (module)
                 {
-                    throw std::runtime_error("No module created during IR generation");
+                    // std::cerr << "WARNING: module already exists, deleting..." << std::endl;
+                    delete module;
+                    module = nullptr;
                 }
+
+                module = new Module("main");
+                // std::cerr << "DEBUG: Created module at " << module << std::endl;
+                builder = new IRBuilder(nullptr, module);
+
+                try
+                {
+                    visit(root);
+                }
+                catch (const std::exception &e)
+                {
+                    std::cerr << "ERROR in visit: " << e.what() << std::endl;
+                    throw;
+                }
+
                 std::string irText = module->print();
+                // std::cerr << "DEBUG: Raw IR text length: " << irText.length() << std::endl;
+
                 return irText;
             }
             void visit(const ASTNode *node)
             {
+                // 调试使用
+                //  static int callCount = 0;
+                //  callCount++;
+                //  std::cerr << "DEBUG visit #" << callCount << ": " << node->name
+                //            << " value=" << node->value << std::endl;
                 if (!node)
-                {
                     return;
-                }
                 if (node->name == "CompUnit")
                 {
+                    // std::cerr << "DEBUG: Visiting CompUnit with " << node->children.size()
+                    //           << " children" << std::endl;
                     visitCompUnit(node);
+                    return;
                 }
                 else if (node->name == "FuncDef")
                 {
                     visitFuncDef(node);
+                    return;
                 }
-                else if (node->name == "FuncType")
+                else if (node->name == "Type")
                 {
-                    visitFuncType(node);
+                    visitType(node);
+                    return;
                 }
                 else if (node->name == "Block")
                 {
                     visitBlock(node);
+                    return;
                 }
                 else if (node->name == "ReturnStmt")
                 {
                     visitReturnStmt(node);
+                    return;
                 }
                 else if (node->name == "IntLiteral")
                 {
                     visitIntLiteral(node);
+                    return;
                 }
                 else if (node->name == "BinaryExpr")
                 {
                     visitBinaryExpr(node);
+                    return;
                 }
-                else if (node->name == "Decl")
+                else if (node->name == "VarDecl")
                 {
-                    visitDecl(node);
+                    visitVarDecl(node);
+                    return;
+                }
+                else if (node->name == "VarDef")
+                {
+                    // 为了完整性添加默认处理
+                    // 在visitVarDecl中处理
+                    return;
+                }
+                else if (node->name == "ConstDecl")
+                {
+                    visitConstDecl(node);
+                    return;
+                }
+                else if (node->name == "ConstDef")
+                {
+                    // 为了完整性添加默认处理
+                    // 在visitConstDecl中处理
+                    return;
                 }
                 else if (node->name == "AssignStmt")
                 {
                     visitAssignStmt(node);
+                    return;
                 }
                 else if (node->name == "Ident")
                 {
                     visitIdent(node);
+                    return;
+                }
+                else if (node->name == "LVal")
+                {
+                    visitLVal(node);
+                    return;
+                }
+                else if (node->name == "FloatLiteral")
+                {
+                    visitFloatLiteral(node);
+                    return;
+                }
+                else if (node->name == "UnaryExpr")
+                {
+                    visitUnaryExpr(node);
+                    return;
+                }
+                else if (node->name == "CallExpr")
+                {
+                    visitCallExpr(node);
+                    return;
+                }
+                else if (node->name == "ExprStmt")
+                {
+                    visitExprStmt(node);
+                    return;
+                }
+                else if (node->name == "IfStmt")
+                {
+                    visitIfStmt(node);
+                    return;
+                }
+                else if (node->name == "ParamList")
+                {
+                    visitParamList(node);
+                    return;
+                }
+                else if (node->name == "Param")
+                {
+                    visitParam(node);
+                    return;
                 }
                 else
                 {
@@ -125,94 +227,129 @@ namespace cminus
             }
             void visitFuncDef(const ASTNode *node)
             {
-                // 创建Function
-                std::string funcName;
-                Type *returnType = nullptr;
+                // 调试使用
+                // static int funcDefCount = 0;
+                // funcDefCount++;
+                // std::cerr << "DEBUG visitFuncDef #" << funcDefCount
+                //           << ": " << node->value << std::endl;
+                // 提取函数名
+                std::string funcName = node->value; // 直接从节点value获取
 
-                // 从子节点提取函数信息
-                for (auto &child : node->children)
+                // 检查子节点结构
+                if (node->children.size() < 3)
                 {
-                    if (child->name == "FuncType")
+                    throw std::runtime_error("FuncDef must have at least 3 children: Type, ParamList, Block");
+                }
+
+                // 第0个子节点是返回类型
+                const ASTNode *returnTypeNode = node->children[0].get();
+                if (returnTypeNode->name != "Type")
+                {
+                    throw std::runtime_error("First child of FuncDef must be Type");
+                }
+                std::string returnTypeName = returnTypeNode->value;
+                if (returnTypeName == "float") // 函数类型不支持float
+                {
+                    throw std::runtime_error("Function '" + funcName + "' cannot return float type at line " +
+                                             std::to_string(node->line) +
+                                             " (C-- grammar only allows 'int' or 'void' as return types)");
+                }
+                Type *returnType = getTypeFromName(returnTypeName);
+
+                // 第1个子节点是参数列表
+                const ASTNode *paramListNode = node->children[1].get();
+                if (paramListNode->name != "ParamList")
+                {
+                    throw std::runtime_error("Second child of FuncDef must be ParamList");
+                }
+
+                // 处理参数
+                std::vector<Type *> paramTypes;
+                std::vector<std::string> paramNames;
+
+                for (auto &paramChild : paramListNode->children)
+                {
+                    if (paramChild->name == "Param")
                     {
-                        // 处理函数返回类型
-                        if (!child->children.empty())
+                        // Param节点：value=参数名，第0个子节点是Type
+                        if (!paramChild->children.empty())
                         {
-                            std::string typeName = child->children[0]->value;
-                            if (typeName == "int")
+                            const ASTNode *paramTypeNode = paramChild->children[0].get();
+                            if (paramTypeNode->name == "Type")
                             {
-                                returnType = Type::get_int32_type(module);
-                            }
-                            else if (typeName == "void")
-                            {
-                                returnType = Type::get_void_type(module);
-                            }
-                            else
-                            {
-                                throw std::runtime_error("Unsupported return type: " + typeName);
+                                Type *paramType = getTypeFromName(paramTypeNode->value);
+                                paramTypes.push_back(paramType);
+                                paramNames.push_back(paramChild->value);
                             }
                         }
                     }
-                    else if (child->name == "Ident")
-                    {
-                        funcName = child->value;
-                    }
-                }
-
-                if (funcName.empty())
-                {
-                    throw std::runtime_error("Function name not found");
-                }
-
-                if (!returnType)
-                {
-                    throw std::runtime_error("Function return type not found");
                 }
 
                 // 创建函数类型
-                std::vector<Type *> paramTypes; // 空参数列表
                 FunctionType *funcType = FunctionType::get(returnType, paramTypes);
-
-                // 创建函数
                 Function *func = Function::create(funcType, funcName, module);
-                module->add_function(func); // 将函数添加到模块
+                // module->add_function(func);
                 currentFunc = func;
 
                 // 创建入口基本块
-                BasicBlock *entryBB = BasicBlock::create(module, "entry", func);
-                func->add_basic_block(entryBB);
+                BasicBlock *entryBB = BasicBlock::create(module, "entry", func); // 输出是label_entry
+                // BasicBlock *entryBB = BasicBlock::create(module, "", func);// 输出是label
+                // func->add_basic_block(entryBB);
                 currentBB = entryBB;
                 builder->set_insert_point(entryBB);
 
                 // 进入函数作用域
                 enterScope();
 
-                // 处理函数体（Block）
-                for (auto &child : node->children)
+                // 为参数创建alloca指令并加入符号表
+                auto argIt = func->get_args().begin();
+                for (size_t i = 0; i < paramNames.size() && argIt != func->get_args().end(); i++, ++argIt)
                 {
-                    if (child->name == "Block")
+                    AllocaInst *paramAlloca = builder->create_alloca(paramTypes[i]);
+
+                    // Argument* 继承自 Value* 可以直接使用
+                    Value *argValue = *argIt; // 这已经是Value*了
+
+                    // 存储参数值到alloca空间
+                    builder->create_store(argValue, paramAlloca);
+
+                    // 将alloca指令加入符号表，而不是参数值
+                    addSymbol(paramNames[i], paramAlloca);
+                }
+
+                // 处理函数体（第2个子节点是Block）
+                if (node->children.size() > 2)
+                {
+                    const ASTNode *blockNode = node->children[2].get();
+                    if (blockNode->name == "Block")
                     {
-                        visitBlock(child.get());
+                        visitBlock(blockNode);
                     }
                 }
 
-                // 如果基本块没有终止指令 添加默认返回
-                // 对于返回int的函数，需要返回0
-                if (!currentBB->get_terminator() && returnType->is_int32_type())
-                {
-                    ConstantInt *zero = ConstantInt::get(0, module);
-                    builder->create_ret(zero);
-                }
+                // 如果基本块没有终止指令，添加默认返回
+                // if (!currentBB->get_terminator())
+                // {
+                //     if (returnType->is_int32_type())
+                //     {
+                //         ConstantInt *zero = ConstantInt::get(0, module);
+                //         builder->create_ret(zero);
+                //     }
+                //     else if (returnType->is_void_type())
+                //     {
+                //         builder->create_void_ret();
+                //     }
+                // }
 
                 // 退出函数作用域
                 exitScope();
 
-                // 重置当前函数和基本块
                 currentFunc = nullptr;
                 currentBB = nullptr;
             }
-            void visitFuncType(const ASTNode *node)
+            void visitType(const ASTNode *node)
             {
-                // 确定函数返回类型 直接在visitFuncDef中处理
+                // 确定函数返回类型
             }
             void visitBlock(const ASTNode *node)
             {
@@ -257,14 +394,573 @@ namespace cminus
             void visitBinaryExpr(const ASTNode *node)
             {
                 // 处理二元表达式
+                std::string op = node->value;
+
+                // 检查子节点数量
+                if (node->children.size() < 2)
+                {
+                    throw std::runtime_error("BinaryExpr must have 2 children");
+                }
+
+                // 计算左表达式
+                visit(node->children[0].get());
+                Value *left = popValue();
+
+                // 计算右表达式
+                visit(node->children[1].get());
+                Value *right = popValue();
+
+                if (!left || !right)
+                {
+                    throw std::runtime_error("Missing operand in binary expression");
+                }
+
+                // 检查类型：不支持float运算
+                if (left->get_type()->is_float_type() || right->get_type()->is_float_type())
+                {
+                    std::string leftType = left->get_type()->is_float_type() ? "float" : "int";
+                    std::string rightType = right->get_type()->is_float_type() ? "float" : "int";
+                    throw std::runtime_error("Binary operation '" + op + "' with " + leftType +
+                                             " and " + rightType + " operands is not supported (float operations are not implemented)");
+                }
+
+                // 只支持整数类型
+                if (!left->get_type()->is_integer_type() || !right->get_type()->is_integer_type())
+                {
+                    throw std::runtime_error("Binary expression only supports integer types");
+                }
+
+                Value *result = nullptr;
+                Type *type = left->get_type();
+
+                // 整数类型运算
+                if (type->is_integer_type())
+                {
+                    if (op == "+")
+                    {
+                        result = builder->create_iadd(left, right);
+                    }
+                    else if (op == "-")
+                    {
+                        result = builder->create_isub(left, right);
+                    }
+                    else if (op == "*")
+                    {
+                        result = builder->create_imul(left, right);
+                    }
+                    else if (op == "/")
+                    {
+                        result = builder->create_isdiv(left, right);
+                    }
+                    else if (op == "%")
+                    {
+                        result = builder->create_irem(left, right);
+                    }
+                    // 比较运算返回i1类型（布尔）
+                    else if (op == "==")
+                    {
+                        result = builder->create_icmp_eq(left, right);
+                    }
+                    else if (op == "!=")
+                    {
+                        result = builder->create_icmp_ne(left, right);
+                    }
+                    else if (op == "<")
+                    {
+                        result = builder->create_icmp_lt(left, right);
+                    }
+                    else if (op == "<=")
+                    {
+                        result = builder->create_icmp_le(left, right);
+                    }
+                    else if (op == ">")
+                    {
+                        result = builder->create_icmp_gt(left, right);
+                    }
+                    else if (op == ">=")
+                    {
+                        result = builder->create_icmp_ge(left, right);
+                    }
+                    // 逻辑运算（需要转换为布尔值）
+                    else if (op == "&&" || op == "||")
+                    {
+                        // 先将整数转换为布尔值
+                        Value *leftBool = builder->create_icmp_ne(left, ConstantInt::get(0, module));
+                        Value *rightBool = builder->create_icmp_ne(right, ConstantInt::get(0, module));
+
+                        if (op == "&&")
+                        {
+                            result = builder->create_iand(leftBool, rightBool);
+                        }
+                        else
+                        { // "||"
+                            result = builder->create_ior(leftBool, rightBool);
+                        }
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Unsupported binary operator for integer: " + op);
+                    }
+                }
+                // 浮点数类型运算
+                else if (type->is_float_type())
+                {
+                    // 暂时不支持浮点数
+                    throw std::runtime_error("Float binary operations not implemented yet");
+                }
+                else
+                {
+                    throw std::runtime_error("Unsupported type for binary expression");
+                }
+
+                pushValue(result);
             }
-            void visitDecl(const ASTNode *node)
+            void visitVarDecl(const ASTNode *node)
             {
                 // 处理变量声明
+                // 第0个子节点是Type
+                if (node->children.empty())
+                    return;
+                const ASTNode *typeNode = node->children[0].get();
+                Type *varType = getTypeFromName(typeNode->value);
+
+                // 处理后续的VarDef节点
+                for (size_t i = 1; i < node->children.size(); i++)
+                {
+                    const ASTNode *varDefNode = node->children[i].get();
+                    if (varDefNode->name == "VarDef")
+                    {
+                        visitVarDef(varDefNode, varType); // 调用visitVarDef函数
+                    }
+                }
+            }
+            void visitVarDef(const ASTNode *node, Type *varType)
+            {
+                // 变量定义函数
+                std::string varName = node->value;
+
+                // 创建alloca指令
+                AllocaInst *alloca = builder->create_alloca(varType);
+                addSymbol(varName, alloca);
+
+                // 如果有初始化表达式
+                if (!node->children.empty())
+                {
+                    visit(node->children[0].get()); // 计算初始化表达式
+                    Value *initValue = popValue();
+                    if (initValue)
+                    {
+                        // 检查float变量初始化
+                        if (varType->is_float_type() || initValue->get_type()->is_float_type())
+                        {
+                            if (varType->is_float_type() && initValue->get_type()->is_float_type())
+                            {
+                                throw std::runtime_error("Float variable '" + varName + "' initialization with float value at line " +
+                                                         std::to_string(node->line) +
+                                                         " is not supported (float operations are not implemented)");
+                            }
+                            // 如果类型不匹配，也会被下面的检查捕获
+                        }
+                        // 类型检查
+                        if (initValue->get_type() != varType)
+                        {
+                            throw std::runtime_error("Type mismatch in variable initialization");
+                        }
+                        builder->create_store(initValue, alloca);
+                    }
+                }
+            }
+            void visitConstDecl(const ASTNode *node)
+            {
+                // 处理常量声明
+                // 第0个子节点是Type
+                if (node->children.empty())
+                    return;
+
+                const ASTNode *typeNode = node->children[0].get();
+                if (typeNode->name != "Type")
+                {
+                    throw std::runtime_error("First child of ConstDecl must be Type");
+                }
+
+                Type *constType = getTypeFromName(typeNode->value);
+
+                // 处理后续的ConstDef节点
+                for (size_t i = 1; i < node->children.size(); i++)
+                {
+                    const ASTNode *constDefNode = node->children[i].get();
+                    if (constDefNode->name == "ConstDef")
+                    {
+                        // 调用visitConstDef函数
+                        visitConstDef(constDefNode, constType);
+                    }
+                }
+            }
+            void visitConstDef(const ASTNode *node, Type *constType)
+            {
+                // 处理常量定义
+                std::string constName = node->value;
+                // 常量类型不可以是float
+                if (constType->is_float_type())
+                {
+                    throw std::runtime_error("Constant '" + constName + "' cannot be of float type at line " +
+                                             std::to_string(node->line) +
+                                             " (float constants are not supported in this implementation)");
+                }
+                // 检查是否有初始化表达式
+                if (node->children.empty())
+                {
+                    throw std::runtime_error("ConstDef must have initialization expression");
+                }
+
+                // 计算初始化表达式
+                const ASTNode *initExprNode = node->children[0].get();
+                visit(initExprNode);
+                Value *initValue = popValue();
+
+                if (!initValue)
+                {
+                    throw std::runtime_error("Missing initialization value for constant: " + constName);
+                }
+
+                // 类型检查
+                if (initValue->get_type() != constType)
+                {
+                    throw std::runtime_error("Type mismatch in constant initialization: " + constName);
+                }
+
+                // 创建alloca指令分配常量空间
+                AllocaInst *alloca = builder->create_alloca(constType);
+
+                // 存储初始值
+                builder->create_store(initValue, alloca);
+
+                // 将常量加入符号表
+                addSymbol(constName, alloca);
             }
             void visitAssignStmt(const ASTNode *node)
             {
                 // 处理赋值语句
+                if (node->children.size() < 2)
+                {
+                    throw std::runtime_error("AssignStmt must have 2 children");
+                }
+
+                // 先处理右表达式
+                const ASTNode *exprNode = node->children[1].get();
+                visit(exprNode);
+                Value *exprValue = popValue();
+
+                if (!exprValue)
+                {
+                    throw std::runtime_error("No value from expression in assignment");
+                }
+
+                // 处理左值
+                const ASTNode *lvalNode = node->children[0].get();
+                if (lvalNode->name != "LVal")
+                {
+                    throw std::runtime_error("First child of AssignStmt must be LVal");
+                }
+
+                std::string varName = lvalNode->value;
+                Value *varAddr = lookupSymbol(varName);
+                if (!varAddr)
+                {
+                    throw std::runtime_error("Undefined variable in assignment: " + varName);
+                }
+                // 类型检查
+                if (varAddr->get_type()->is_pointer_type())
+                {
+                    PointerType *ptrType = static_cast<PointerType *>(varAddr->get_type());
+                    Type *pointedType = ptrType->get_element_type();
+
+                    // 检查赋值类型是否匹配
+                    if (exprValue->get_type() != pointedType)
+                    {
+                        // 如果是float类型赋值给出更具体的错误
+                        if (pointedType->is_float_type() || exprValue->get_type()->is_float_type())
+                        {
+                            throw std::runtime_error("Assignment to/from float variable '" + varName +
+                                                     "' at line " + std::to_string(node->line) +
+                                                     " is not supported (float operations are not implemented)");
+                        }
+                        throw std::runtime_error("Type mismatch in assignment to variable '" + varName +
+                                                 "' at line " + std::to_string(node->line));
+                    }
+                }
+                // 存储值到变量
+                builder->create_store(exprValue, varAddr);
+            }
+            void visitLVal(const ASTNode *node)
+            {
+                // 处理变量名
+                std::string varName = node->value;
+                Value *varAddr = lookupSymbol(varName);
+
+                if (!varAddr)
+                {
+                    throw std::runtime_error("Undefined variable: " + varName);
+                }
+                // 加载变量的值
+                Value *loadedValue = builder->create_load(varAddr);
+                pushValue(loadedValue);
+            }
+            void visitFloatLiteral(const ASTNode *node)
+            {
+                // 处理浮点数常量 不支持浮点数常量
+                throw std::runtime_error("Float literal '" + node->value + "' at line " +
+                                         std::to_string(node->line) + " is not supported (float constants cannot be used)");
+            }
+            void visitUnaryExpr(const ASTNode *node)
+            {
+                // 处理一元运算符
+                std::string op = node->value; // '+', '-', '!'
+
+                if (node->children.empty())
+                {
+                    throw std::runtime_error("UnaryExpr must have 1 child");
+                }
+
+                // 计算操作数
+                visit(node->children[0].get());
+                Value *operand = popValue();
+
+                if (!operand)
+                {
+                    throw std::runtime_error("Missing operand in unary expression");
+                }
+
+                // 检查类型：不支持float
+                if (operand->get_type()->is_float_type())
+                {
+                    throw std::runtime_error("Unary operation '" + op + "' on float operand is not supported at line " +
+                                             std::to_string(node->line));
+                }
+                // 只支持整数类型
+                if (!operand->get_type()->is_integer_type())
+                {
+                    throw std::runtime_error("Unary expression only supports integer type at line " +
+                                             std::to_string(node->line));
+                }
+                Value *result = nullptr;
+
+                if (op == "+")
+                {
+                    // 正号，直接返回操作数
+                    result = operand;
+                }
+                else if (op == "-")
+                {
+                    // 负号：0 - operand
+                    if (operand->get_type()->is_integer_type())
+                    {
+                        Value *zero = ConstantInt::get(0, module);
+                        result = builder->create_isub(zero, operand);
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Unary minus only supports integer type");
+                    }
+                }
+                else if (op == "!")
+                {
+                    // 逻辑非：operand == 0 ? 1 : 0
+                    if (operand->get_type()->is_integer_type())
+                    {
+                        Value *zero = ConstantInt::get(0, module);
+                        Value *isZero = builder->create_icmp_eq(operand, zero);
+                        // 将i1转换为i32
+                        result = builder->create_zext(isZero, Type::get_int32_type(module));
+                    }
+                    else
+                    {
+                        throw std::runtime_error("Logical not only supports integer type");
+                    }
+                }
+                else
+                {
+                    throw std::runtime_error("Unsupported unary operator: " + op);
+                }
+
+                pushValue(result);
+            }
+            void visitCallExpr(const ASTNode *node)
+            {
+                // 处理函数调用
+                std::string funcName = node->value;
+
+                // 在模块中查找函数
+                Function *func = nullptr;
+                for (auto &f : module->get_functions())
+                {
+                    if (f->get_name() == funcName)
+                    {
+                        func = f;
+                        break;
+                    }
+                }
+
+                if (!func)
+                {
+                    throw std::runtime_error("Undefined function: " + funcName);
+                }
+
+                // 收集参数值
+                std::vector<Value *> args;
+                for (auto &child : node->children)
+                {
+                    visit(child.get()); // 访问每个参数表达式
+                    Value *argValue = popValue();
+                    if (!argValue)
+                    {
+                        throw std::runtime_error("Missing argument value in function call");
+                    }
+                    args.push_back(argValue);
+                }
+
+                // 检查参数数量是否匹配
+                if (args.size() != func->get_num_of_args())
+                {
+                    throw std::runtime_error("Argument count mismatch for function: " + funcName);
+                }
+                // 创建调用指令
+                CallInst *call = builder->create_call(func, args);
+                pushValue(call); // 将函数调用结果压入值栈
+            }
+            void visitExprStmt(const ASTNode *node)
+            {
+                // 处理表达式语句(可能为空或者有表达式)
+                if (!node->children.empty())
+                {
+                    // 有表达式，计算表达式值
+                    visit(node->children[0].get());
+                    Value *exprValue = popValue();
+                }
+                // 空语句什么也不做
+            }
+            void visitIfStmt(const ASTNode *node)
+            {
+                // 处理条件语句
+                // 子节点：0=条件，1=then块，2=else块
+
+                if (node->children.size() < 2)
+                {
+                    throw std::runtime_error("IfStmt must have at least 2 children (condition and then-block)");
+                }
+
+                // 访问条件表达式
+                const ASTNode *condNode = node->children[0].get();
+                visit(condNode);
+                Value *condValue = popValue();
+
+                if (!condValue)
+                {
+                    throw std::runtime_error("Missing condition value in if statement");
+                }
+
+                // 将条件值转换为布尔值（i1类型）
+                Value *boolCond = nullptr;
+                if (condValue->get_type()->is_integer_type())
+                {
+                    // 整数转布尔：cond != 0
+                    Value *zero = ConstantInt::get(0, module);
+                    boolCond = builder->create_icmp_ne(condValue, zero);
+                }
+                else if (condValue->get_type()->is_int1_type())
+                {
+                    // 已经是布尔类型
+                    boolCond = condValue;
+                }
+                else
+                {
+                    throw std::runtime_error("Condition must be integer or boolean type");
+                }
+
+                // 获取当前函数
+                Function *func = currentFunc;
+                if (!func)
+                {
+                    throw std::runtime_error("If statement not inside a function");
+                }
+
+                // 创建基本块
+                BasicBlock *thenBB = BasicBlock::create(module, "if_then", func);
+                BasicBlock *elseBB = nullptr;
+                BasicBlock *mergeBB = BasicBlock::create(module, "if_merge", func);
+
+                // 如果有else块
+                bool hasElse = (node->children.size() > 2);
+                if (hasElse)
+                {
+                    elseBB = BasicBlock::create(module, "if_else", func);
+                    builder->create_cond_br(boolCond, thenBB, elseBB);
+                }
+                else
+                {
+                    builder->create_cond_br(boolCond, thenBB, mergeBB);
+                }
+
+                // 处理then块
+                builder->set_insert_point(thenBB);
+                const ASTNode *thenNode = node->children[1].get();
+                visit(thenNode);
+
+                // then块结束后跳转到合并块
+                if (!thenBB->get_terminator())
+                {
+                    builder->create_br(mergeBB);
+                }
+
+                // 处理else块
+                if (hasElse && elseBB)
+                {
+                    builder->set_insert_point(elseBB);
+                    const ASTNode *elseNode = node->children[2].get();
+                    visit(elseNode);
+
+                    // else块结束后跳转到合并块
+                    if (!elseBB->get_terminator())
+                    {
+                        builder->create_br(mergeBB);
+                    }
+                }
+
+                // 设置插入点到合并块继续执行
+                builder->set_insert_point(mergeBB);
+            }
+            void visitParamList(const ASTNode *node)
+            {
+                // 处理参数序列
+                for (auto &child : node->children)
+                {
+                    visit(child.get());
+                }
+            }
+            void visitParam(const ASTNode *node)
+            {
+                // 处理单个参数
+                // Param节点：value=参数名，第0个子节点是Type
+
+                std::string paramName = node->value;
+
+                // 获取参数类型
+                if (node->children.empty())
+                {
+                    throw std::runtime_error("Param node must have a Type child");
+                }
+
+                const ASTNode *typeNode = node->children[0].get();
+                if (typeNode->name != "Type")
+                {
+                    throw std::runtime_error("First child of Param must be Type");
+                }
+
+                Type *paramType = getTypeFromName(typeNode->value);
+                // 为参数创建alloca指令分配空间
+                AllocaInst *alloca = builder->create_alloca(paramType);
+                // 将参数加入符号表
+                addSymbol(paramName, alloca);
             }
             Type *getTypeFromName(const std::string &typeName)
             {
@@ -272,17 +968,23 @@ namespace cminus
                 {
                     return Type::get_int32_type(module);
                 }
+                else if (typeName == "float")
+                {
+                    return Type::get_float_type(module);
+                }
                 else if (typeName == "void")
                 {
                     return Type::get_void_type(module);
                 }
                 throw std::runtime_error("Unsupported type: " + typeName);
             }
+
             void reset() // 清理状态
             {
                 currentFunc = nullptr;
                 currentBB = nullptr;
                 symbolTableStack.clear();
+                valueStack.clear();
             }
             void enterScope()
             {
@@ -322,24 +1024,24 @@ namespace cminus
             {
                 // 从符号表中查找变量
                 std::string varName = node->value;
-                Value *varValue = lookupSymbol(varName);
+                Value *varAddr = lookupSymbol(varName);
 
-                if (!varValue)
+                if (!varAddr)
                 {
                     throw std::runtime_error("Undefined variable: " + varName);
                 }
 
-                // 局部变量需要加载值
-                if (varValue->get_type()->is_pointer_type())
+                // 确保varAddr是AllocaInst*指针类型
+                if (varAddr->get_type()->is_pointer_type())
                 {
-                    // 创建load指令
-                    Value *loadedValue = builder->create_load(varValue);
+                    // 创建load指令加载变量值
+                    Value *loadedValue = builder->create_load(varAddr);
                     pushValue(loadedValue);
                 }
                 else
                 {
-                    // 直接使用
-                    pushValue(varValue);
+                    // 如果不是指针则直接使用
+                    pushValue(varAddr);
                 }
             }
             ~IRVisitor()

@@ -3,11 +3,13 @@
 #include "c--/common/Result.h"
 #include "c--/parser/AST.h"
 
-namespace cminus {
+namespace cminus
+{
 
-class IRGenerator {
-public:
-    IRResult generate(const ASTNode* root);
-};
+    class IRGenerator
+    {
+    public:
+        IRResult generate(const ASTNode *root);
+    };
 
 } // namespace cminus
