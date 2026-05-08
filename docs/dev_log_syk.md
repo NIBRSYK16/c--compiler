@@ -66,3 +66,69 @@ Todo list：
 - [ ] 先跑通最小样例：全局变量、`main` 函数、局部变量、赋值、表达式、`return`。
 - [ ] 补充语法错误信息，至少能说明出错 token、行列号和当前期望的符号。
 - [ ] 整理语法分析部分的测试样例和输出截图，给测试报告使用。
+
+### 2026.5.8
+
+今天没有直接推进 SLR 核心表构造，先做了一层 Parser 周边的诊断增强，避免后面 SLR 一上来就面对质量很差的 token 流。这个功能不替代正式语法分析，只作为进入 SLR 前的预检和调试辅助。
+
+已完成：
+
+- 新增公共诊断结构 `Diagnostic`，后续语法分析错误可以和词法错误共用统一格式。
+- 在 `ParseResult` 中增加 `diagnostics` 字段，后续 Parser 可以返回结构化错误，而不仅是一段普通字符串。
+- 增加 `TokenStreamSummary`，用于记录 token 总数、EOF 数量、最大括号深度、最大代码块深度和诊断列表。
+- 在 `Parser` 中新增 `precheckTokenStream(...)` 接口，专门做 SLR 前的 token 流质量检查。
+- 实现括号和大括号匹配检查：能发现多余的 `)`、`}`，也能发现没有闭合的 `(`、`{`。
+- 实现 EOF 检查：能发现缺少 EOF、重复 EOF、EOF 后仍有 token 等输入流问题。
+- 实现 `else` 上下文预检：对明显没有可见匹配 `if` 的 `else` 给出错误。
+- 实现二元运算符右操作数检查，例如 `return a +;` 会在进入 SLR 前给出更清楚的提示。
+- 实现相邻表达式 token 的 warning，例如两个标识符或常量异常相邻时给出提醒。
+- 在 `parser_main` 中增加 `PARSER_PREFLIGHT` 环境变量开关，可以单独输出 token 流预检摘要。
+- 增加 JSON Lines 诊断输出，`DIAGNOSTICS_JSON=1` 时可以把语法预检问题输出成机器可读格式。
+- 新增 `docs/parser_diagnostics.md`，说明这层诊断和正式 SLR 分析的关系，避免和后续计划任务混淆。
+- 新增 `tests/samples/parser_preflight_syk.sy`，用于覆盖括号不匹配和操作数缺失等语法预检场景。
+
+这部分的价值主要在于：
+
+- 后续实现 SLR 时，可以先调用 `precheckTokenStream` 过滤掉明显结构错误。
+- 测试同学可以拿预检摘要辅助定位“词法没问题但语法输入流明显坏掉”的样例。
+- 后续正式 SLR 报错也可以复用同一套 `Diagnostic`，把状态栈、当前 token 和期望符号组合成更友好的错误信息。
+
+Todo list 补充：
+
+- [x] 增加 Parser token 流预检接口。
+- [x] 增加括号/大括号匹配诊断。
+- [x] 增加 EOF 完整性诊断。
+- [x] 增加二元运算符缺少操作数的提前诊断。
+- [x] 增加 parser 诊断文档和预检样例。
+- [ ] 后续 SLR 完成后，把分析表报错也接入 `Diagnostic`。
+
+### 2026.5.8 晚
+
+最后又做了一个偏展示和工程体验的工具：C-- 实时命令行编辑器。这个工具不属于 SLR 主线算法，但可以把词法分析、语法预检、诊断输出和源码展示串起来，后面答辩或联调时比较直观。
+
+已完成：
+
+- 新增 `tests/drivers/live_editor_main.cpp`，实现独立的 `cminus_editor` 命令行编辑器。
+- 在 `Makefile` 中新增 `editor` 和 `run-editor` 目标，可以用 `make editor` 编译，用 `make run-editor` 打开默认样例。
+- 支持打开和保存 `.sy` 文件，命令包括 `:open`、`:save`、`:show`、`:insert`、`:append`、`:replace`、`:delete` 等。
+- 支持实时分析：每次插入、替换、删除源码后，自动调用 `Lexer::tokenize(...)` 和 `Parser::precheckTokenStream(...)`。
+- 支持语法高亮显示：关键字、标识符、数字、运算符、界符分别使用不同 ANSI 颜色展示。
+- 支持 `:tokens` 查看当前缓冲区的 token 表，方便检查 Parser 收到的输入流。
+- 支持 `:analyze` 输出完整诊断，包括词法错误、语法预检错误、warning、token 数量、括号深度和代码块深度。
+- 支持 `:live on/off` 开关实时分析，支持 `:color on/off` 或 `NO_COLOR=1` 关闭颜色，兼容不支持 ANSI 的终端。
+- 新增 `docs/live_editor.md`，说明编辑器的命令、使用方式、展示能力和它与正式 Parser 的关系。
+
+这个工具的意义：
+
+- 可以实时展示词法模块和语法预检模块的效果，比单独跑测试文件更直观。
+- 后续 SLR Parser 完成后，可以继续把真正的规约错误接到编辑器里，形成一个简易前端 IDE。
+- 对测试同学也有帮助：可以边改样例边看 token 和预检诊断，不用每次手动跑多个 driver。
+
+Todo list 补充：
+
+- [x] 实现命令行编辑器基本缓冲区操作。
+- [x] 接入词法分析和 Parser 预检。
+- [x] 实现 ANSI 语法高亮。
+- [x] 支持 token 表查看和实时诊断摘要。
+- [x] 补充编辑器使用文档。
+- [ ] 后续正式 SLR 完成后，将规约栈和期望符号也显示到编辑器诊断面板中。

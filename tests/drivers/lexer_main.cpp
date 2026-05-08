@@ -1,7 +1,9 @@
 #include <exception>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include "c--/lexer/automata.h"
 #include "c--/lexer/lexer.h"
 #include "tests/drivers/driver_utils.h"
 
@@ -28,8 +30,22 @@ int main(int argc, char** argv) {
         }
 
         if (!result.success) {
+            if (std::getenv("DIAGNOSTICS_JSON") != NULL) {
+                std::cerr << cminus::renderDiagnosticsJsonLines(result.diagnostics);
+            }
             std::cerr << result.errorMessage;
             return 1;
+        }
+
+        if (std::getenv("LEXER_STATS") != NULL) {
+            cminus::AutomataStats stats = cminus::getAutomataStats();
+            std::cerr << "lexer automata stats: "
+                      << "rules=" << stats.rules
+                      << ", alphabet=" << stats.alphabetSize
+                      << ", nfa_states=" << stats.nfaStates
+                      << ", dfa_states=" << stats.dfaStates
+                      << ", minimized_dfa_states=" << stats.minimizedDfaStates
+                      << '\n';
         }
 
         return 0;

@@ -1,0 +1,14 @@
+const int LIMIT = 100;
+
+int main() {
+    // line comments should be ignored by the lexer
+    int value = 42;
+    /*
+       block comments may cross lines and should not produce tokens
+    */
+    float ratio = 3.14;
+    int bad1 = 123abc;
+    float bad2 = 1.;
+    int ok = value >= LIMIT && value != 0;
+    return ok;
+}

@@ -501,4 +501,16 @@ const std::vector<TokenRule>& getTokenRules() {
     return globalRules;
 }
 
+AutomataStats getAutomataStats() {
+    ensureBuilt();
+
+    AutomataStats stats;
+    stats.nfaStates = (int)globalNFA.states.size();
+    stats.dfaStates = (int)globalDFA.states.size();
+    stats.minimizedDfaStates = (int)globalMinDFA.states.size();
+    stats.rules = (int)globalRules.size();
+    stats.alphabetSize = (int)globalMinDFA.alphabet.size();
+    return stats;
+}
+
 } // namespace cminus

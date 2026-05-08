@@ -1,4 +1,5 @@
 #include <exception>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -16,6 +17,19 @@ int main(int argc, char** argv) {
         std::vector<cminus::Token> tokens = test_driver::readTokenTable(argv[1]);
 
         cminus::Parser parser;
+        if (std::getenv("PARSER_PREFLIGHT") != NULL) {
+            cminus::TokenStreamSummary summary = parser.precheckTokenStream(tokens);
+            std::cerr << "parser token precheck: "
+                      << "success=" << (summary.success ? "true" : "false")
+                      << ", tokens=" << summary.tokenCount
+                      << ", eof=" << summary.eofCount
+                      << ", max_paren_depth=" << summary.maxParenDepth
+                      << ", max_brace_depth=" << summary.maxBraceDepth
+                      << ", diagnostics=" << summary.diagnostics.size()
+                      << '\n';
+            std::cerr << cminus::renderDiagnostics(summary.diagnostics);
+        }
+
         cminus::ParseResult result = parser.parse(tokens);
 
         std::ostream* astOutput = &std::cout;
@@ -44,6 +58,9 @@ int main(int argc, char** argv) {
         }
 
         if (!result.success) {
+            if (std::getenv("DIAGNOSTICS_JSON") != NULL) {
+                std::cerr << cminus::renderDiagnosticsJsonLines(result.diagnostics);
+            }
             std::cerr << result.errorMessage << '\n';
             return 1;
         }

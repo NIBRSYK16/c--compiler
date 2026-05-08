@@ -49,11 +49,20 @@ struct DFA {
     std::vector<int> alphabet;
 };
 
+struct AutomataStats {
+    int nfaStates = 0;
+    int dfaStates = 0;
+    int minimizedDfaStates = 0;
+    int rules = 0;
+    int alphabetSize = 0;
+};
+
 NFA buildLexerNFA(std::vector<TokenRule>& rules);
 DFA nfaToDfa(const NFA& nfa, const std::vector<TokenRule>& rules);
 DFA minimizeDfa(const DFA& dfa, const std::vector<TokenRule>& rules);
 
 const DFA& getMinimizedDFA();
 const std::vector<TokenRule>& getTokenRules();
+AutomataStats getAutomataStats();
 
 } // namespace cminus

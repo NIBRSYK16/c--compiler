@@ -1042,7 +1042,76 @@ if (lastAcceptRule < 0) {
 
 这样一个文件中出现多个非法字符时，可以尽量一次性报出多个错误。
 
-## 14. 示例
+另外，扫描器现在对数字字面量做了一层额外校验：
+
+- `123abc` 会作为畸形数字整体报错，而不是拆成 `123` 和 `abc`。
+- `1.`、`1.a` 会作为畸形浮点数报错，避免后续 Parser 收到难以理解的 token 序列。
+
+## 14. 结构化诊断
+
+词法分析错误除了写入 `errorMessage`，还会同步保存到 `LexResult::diagnostics` 中。诊断结构定义在 `include/c--/common/Diagnostic.h`：
+
+```cpp
+struct Diagnostic {
+    DiagnosticSeverity severity;
+    std::string code;
+    std::string message;
+    SourceRange range;
+    std::string hint;
+};
+```
+
+目前词法分析器使用的错误码包括：
+
+| 错误码 | 含义 |
+|---|---|
+| `LEX_UNEXPECTED_CHAR` | 遇到无法识别的非法字符 |
+| `LEX_MALFORMED_NUMBER` | 数字字面量格式错误 |
+| `LEX_UNTERMINATED_COMMENT` | 块注释没有闭合 |
+
+这样做的好处是后续主流程、测试程序或报告生成脚本可以直接读取结构化诊断，而不是再从字符串中反向解析错误信息。
+
+测试 driver 还支持机器可读的 JSON Lines 输出：
+
+```bash
+DIAGNOSTICS_JSON=1 make run-lexer
+```
+
+每条诊断会输出为一行 JSON，字段包括 `severity`、`code`、`message`、`line`、`column`、`length` 和 `hint`。这类格式适合后续自动化测试、CI 或测试报告脚本直接消费。
+
+## 15. 注释处理
+
+扫描器在进入 DFA 识别前会先处理注释：
+
+- `// ...`：跳过到当前行结束。
+- `/* ... */`：跳过整个块注释，并正常维护跨行行号。
+- 未闭合的块注释会报告 `unterminated block comment`，并指出注释起始位置。
+
+注释不进入自动机 token 规则，原因是注释属于词法预处理性质，直接在扫描器层过滤可以避免和 `/` 除号 token 冲突，也更方便做未闭合块注释的错误恢复。
+
+## 16. 自动机统计接口
+
+自动机模块提供了 `getAutomataStats()`，用于测试和报告中展示构造结果：
+
+```cpp
+struct AutomataStats {
+    int nfaStates;
+    int dfaStates;
+    int minimizedDfaStates;
+    int rules;
+    int alphabetSize;
+};
+```
+
+临时词法测试程序支持通过环境变量输出统计信息：
+
+```bash
+LEXER_STATS=1 make run-lexer
+```
+
+这样可以比较直观地看到 NFA 状态数、DFA 状态数和最小化后的 DFA 状态数。
+
+## 17. 示例
 
 输入：
 
@@ -1080,14 +1149,13 @@ make run-lexer INPUT=tests/case1_ok/input.sy
 .tmp_build/token.tsv
 ```
 
-## 15. 当前实现的边界
+## 18. 当前实现的边界
 
 - 没有实现物理双缓冲区，而是一次性读入 `std::string`，用 `pos` 和 `cursor` 模拟扫描指针。
-- 没有处理注释，因为大作业文档没有明确要求注释规则。
 - 单独 `!` 的属性目前是 `"!"`，因为文档运算符编号表没有给它编号，但语法要求支持一元 `!`。
 - 浮点数严格按 `[0-9]+'.'[0-9]+` 识别，`1.` 和 `.5` 不作为合法浮点数字面量。
 
-## 16. 和课件结构的对应关系
+## 19. 和课件结构的对应关系
 
 课件中的词法分析器结构可以对应到当前实现：
 
