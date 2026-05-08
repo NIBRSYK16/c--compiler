@@ -1,0 +1,56 @@
+const int CONST = 100;
+float PI = 3.14;
+int ga, gb = 5;
+
+int add(int x, int y) {
+    return x + y;
+}
+
+void dummy() {
+    return;
+}
+
+int main() {
+    int if = 10;   // 语法错误：'if' 是关键字，不能作为标识符
+    int b = 20;
+    int c;
+    float f = 2.5;
+    const int ZERO = 0;
+    int result, flag;
+    float divResult;
+
+    c = a + b * 3    // 语法错误：缺少分号 ';'
+    result = add(a, b);
+
+    if (a > b) {
+        a = a - 1;
+    } else {
+        a = a + 1;
+    }
+
+    if (a >= b && c != 0) {
+        flag = 1;
+    }
+
+    if (flag || !a) {
+        flag = 0;
+    }
+
+    {
+        int blk = 5;
+        blk = (blk + 1) * 2;
+    }
+
+    ;
+
+    dummy();
+
+    c = -a + +b;
+    c = (a + b) * (c - 1);
+    divResult = f / 2.0;
+    if (a <= b || c == 10) {
+        c = c % 2;
+    }
+
+    return 0;
+}
