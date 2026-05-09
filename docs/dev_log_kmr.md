@@ -42,7 +42,7 @@
 - [x] 完善visitFuncDef visitCompUnit visitBlock visitReturnStmt visitIntLiteral visitIdent visitVarDecl visitType函数
 - [x] 符号表栈管理
 - [x] 对于正确样例case1_ok/ast.txt进行测试 除了label_entry有问题其它和样例一致
-- [ ] 调用third-part已有函数得到的是label_entry而非entry输出偏差待解决
+- [x] 调用third-part已有函数得到的是label_entry而非entry输出偏差待解决
 - [x] visitBinaryExpr 二元表达式实现
 - [x] visitUnaryExpr 一元表达式实现
 - [x] visitAssignStmt 赋值语句实现
@@ -61,3 +61,10 @@
 - [x] visitParam 参数
 - [x] visitVarDef 变量定义(从visitVarDecl中分离)
 - [x] 对于float相关类型定义/声明/运算处增加类型检查
+
+### 2026-05-08
+检查调用第三方库的细节并根据编译原理大作业.docx进行中间代码生成部分的修正
+- [ ] create_iand和create_ior第三方库内部调用create_sdiv有问题 不知能否修改第三方库
+- [ ] 调用third-part已有函数得到的是label_entry而非entry输出偏差是因为第三方库内部自动加入"label_"前缀 不知能否修改第三方库
+- [x] 增加全局变量支持 区分全局和局部作用域 使用全局数据区而非栈分配进行存储
+- [x] cline给出的所有单独AST节点到中间代码生成的样例均运行成功没有看出什么问题

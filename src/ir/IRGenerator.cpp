@@ -6,6 +6,7 @@
 #include "third_part/compiler_ir/include/IRbuilder.h"
 #include "third_part/compiler_ir/include/IRprinter.h"
 #include "third_part/compiler_ir/include/Type.h"
+#include "third_part/compiler_ir/include/GlobalVariable.h"
 #include <stdexcept>
 #include <map>
 #include <vector>
@@ -25,6 +26,8 @@ namespace cminus
             IRBuilder *builder = nullptr;
             std::vector<std::map<std::string, Value *>> symbolTableStack; // 符号表栈
             std::vector<Value *> valueStack;                              // 表达式值栈
+            std::map<std::string, GlobalVariable *> globalSymbolTable;    // 全局符号表
+            bool isGlobalScope = false;                                   // 当前是否在全局作用域
 
         public:
             IRVisitor() = default;
@@ -219,14 +222,20 @@ namespace cminus
             }
             void visitCompUnit(const ASTNode *node)
             {
+                // 进入全局作用域
+                isGlobalScope = true;
                 // 创建Module程序根节点
                 for (auto &child : node->children)
                 {
                     visit(child.get());
                 }
+                // 离开全局作用域
+                isGlobalScope = false;
             }
             void visitFuncDef(const ASTNode *node)
             {
+                // 进入函数作用域，设置非全局作用域
+                isGlobalScope = false;
                 // 调试使用
                 // static int funcDefCount = 0;
                 // funcDefCount++;
@@ -539,34 +548,80 @@ namespace cminus
                 // 变量定义函数
                 std::string varName = node->value;
 
-                // 创建alloca指令
-                AllocaInst *alloca = builder->create_alloca(varType);
-                addSymbol(varName, alloca);
-
-                // 如果有初始化表达式
-                if (!node->children.empty())
+                if (isGlobalScope)
                 {
-                    visit(node->children[0].get()); // 计算初始化表达式
-                    Value *initValue = popValue();
-                    if (initValue)
+                    // 处理全局变量
+                    // 检查是否已存在同名全局变量
+                    if (globalSymbolTable.find(varName) != globalSymbolTable.end())
                     {
-                        // 检查float变量初始化
-                        if (varType->is_float_type() || initValue->get_type()->is_float_type())
+                        throw std::runtime_error("Duplicate global variable definition: " + varName);
+                    }
+
+                    // 处理初始化表达式
+                    Constant *initValue = nullptr;
+                    if (!node->children.empty())
+                    {
+                        // 计算初始化表达式
+                        const ASTNode *initExprNode = node->children[0].get();
+                        visit(initExprNode);
+                        Value *exprValue = popValue();
+
+                        if (exprValue)
                         {
-                            if (varType->is_float_type() && initValue->get_type()->is_float_type())
+                            // 将Value*转换为Constant*
+                            if (auto *constInt = dynamic_cast<ConstantInt *>(exprValue))
                             {
-                                throw std::runtime_error("Float variable '" + varName + "' initialization with float value at line " +
-                                                         std::to_string(node->line) +
-                                                         " is not supported (float operations are not implemented)");
+                                initValue = constInt;
                             }
-                            // 如果类型不匹配，也会被下面的检查捕获
+                            else if (exprValue->get_type()->is_float_type())
+                            {
+                                // 第三方库没有ConstantFloat但是float全局变量初始化需要常量 进行报错
+                                throw std::runtime_error("Global float variable initialization is not supported: " + varName);
+                            }
+                            else
+                            {
+                                throw std::runtime_error("Global variable initialization must be constant expression");
+                            }
                         }
-                        // 类型检查
-                        if (initValue->get_type() != varType)
+                    }
+
+                    // 创建全局变量
+                    GlobalVariable *gv = GlobalVariable::create(varName, module, varType, false, initValue);
+
+                    // 添加到全局符号表
+                    addGlobalSymbol(varName, gv);
+                }
+                else
+                {
+                    // 处理局部变量
+                    // 创建alloca指令
+                    AllocaInst *alloca = builder->create_alloca(varType);
+                    addSymbol(varName, alloca);
+
+                    // 如果有初始化表达式
+                    if (!node->children.empty())
+                    {
+                        visit(node->children[0].get()); // 计算初始化表达式
+                        Value *initValue = popValue();
+                        if (initValue)
                         {
-                            throw std::runtime_error("Type mismatch in variable initialization");
+                            // 检查float变量初始化
+                            if (varType->is_float_type() || initValue->get_type()->is_float_type())
+                            {
+                                if (varType->is_float_type() && initValue->get_type()->is_float_type())
+                                {
+                                    throw std::runtime_error("Float variable '" + varName + "' initialization with float value at line " +
+                                                             std::to_string(node->line) +
+                                                             " is not supported (float operations are not implemented)");
+                                }
+                            }
+                            // 类型检查
+                            if (initValue->get_type() != varType)
+                            {
+                                throw std::runtime_error("Type mismatch in variable initialization");
+                            }
+                            builder->create_store(initValue, alloca);
                         }
-                        builder->create_store(initValue, alloca);
                     }
                 }
             }
@@ -629,14 +684,43 @@ namespace cminus
                     throw std::runtime_error("Type mismatch in constant initialization: " + constName);
                 }
 
-                // 创建alloca指令分配常量空间
-                AllocaInst *alloca = builder->create_alloca(constType);
+                // 将Value*转换为Constant*
+                Constant *constInit = nullptr;
+                if (auto *constInt = dynamic_cast<ConstantInt *>(initValue))
+                {
+                    constInit = constInt;
+                }
+                else
+                {
+                    throw std::runtime_error("Constant initialization must be constant expression");
+                }
 
-                // 存储初始值
-                builder->create_store(initValue, alloca);
+                if (isGlobalScope)
+                {
+                    // 处理全局常量
+                    if (globalSymbolTable.find(constName) != globalSymbolTable.end())
+                    {
+                        throw std::runtime_error("Duplicate global constant definition: " + constName);
+                    }
 
-                // 将常量加入符号表
-                addSymbol(constName, alloca);
+                    // 创建全局常量
+                    GlobalVariable *gv = GlobalVariable::create(constName, module, constType, true, constInit);
+
+                    // 添加到全局符号表
+                    addGlobalSymbol(constName, gv);
+                }
+                else
+                {
+                    // 处理局部常量
+                    // 创建alloca指令分配常量空间
+                    AllocaInst *alloca = builder->create_alloca(constType);
+
+                    // 存储初始值
+                    builder->create_store(initValue, alloca);
+
+                    // 将常量加入符号表
+                    addSymbol(constName, alloca);
+                }
             }
             void visitAssignStmt(const ASTNode *node)
             {
@@ -818,7 +902,6 @@ namespace cminus
                     }
                     args.push_back(argValue);
                 }
-
                 // 检查参数数量是否匹配
                 if (args.size() != func->get_num_of_args())
                 {
@@ -826,7 +909,13 @@ namespace cminus
                 }
                 // 创建调用指令
                 CallInst *call = builder->create_call(func, args);
-                pushValue(call); // 将函数调用结果压入值栈
+                // 只有非void返回类型的函数才将结果压入值栈
+                Type *returnType = func->get_return_type();
+                if (!returnType->is_void_type())
+                {
+                    pushValue(call); // 将函数调用结果压入值栈
+                }
+                // void函数没有返回值，不压入值栈
             }
             void visitExprStmt(const ASTNode *node)
             {
@@ -985,6 +1074,8 @@ namespace cminus
                 currentBB = nullptr;
                 symbolTableStack.clear();
                 valueStack.clear();
+                globalSymbolTable.clear();
+                isGlobalScope = false;
             }
             void enterScope()
             {
@@ -1001,6 +1092,7 @@ namespace cminus
 
             Value *lookupSymbol(const std::string &name)
             {
+                // 先查局部符号表栈
                 for (auto it = symbolTableStack.rbegin(); it != symbolTableStack.rend(); ++it)
                 {
                     auto found = it->find(name);
@@ -1009,9 +1101,19 @@ namespace cminus
                         return found->second;
                     }
                 }
+                // 再查全局符号表
+                auto globalFound = globalSymbolTable.find(name);
+                if (globalFound != globalSymbolTable.end())
+                {
+                    return globalFound->second;
+                }
                 return nullptr;
             }
-
+            void addGlobalSymbol(const std::string &name, GlobalVariable *gv)
+            // 添加全局符号
+            {
+                globalSymbolTable[name] = gv;
+            }
             void addSymbol(const std::string &name, Value *value)
             {
                 if (symbolTableStack.empty())
@@ -1031,7 +1133,7 @@ namespace cminus
                     throw std::runtime_error("Undefined variable: " + varName);
                 }
 
-                // 确保varAddr是AllocaInst*指针类型
+                // 确保varAddr是AllocaInst*指针类型或GlobalVariable*指针类型
                 if (varAddr->get_type()->is_pointer_type())
                 {
                     // 创建load指令加载变量值
