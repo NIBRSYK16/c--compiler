@@ -23,6 +23,7 @@ C-- 支持：
 - `src/lexer`：词法分析实现。
 - `src/parser`：语法分析和 AST 构建实现。
 - `src/ir`：中间代码生成实现。
+- `src/tools`：辅助命令行工具，目前包含 C-- 实时编辑器。
 - `include/c--`：项目头文件。
 - `grammar`：文法文件。
 - `docs`：开发日志、AST 约定、架构说明等文档。
@@ -56,7 +57,7 @@ C-- 支持：
 
 - `token.tsv` 是临时测试格式，列为 `line column type grammar attr lexeme`，用于给 Parser 单独测试。
 - `ast.txt` 使用 `docs/AST_SPEC.md` 中的缩进格式，例如 `FuncDef value=main`。
-- 当前 Parser 还没实现时，`run-parser` 会正常编译，但运行会提示 Parser 未完成。
+- Parser 已经实现，`run-parser` 会输出 AST 和移进/规约日志。
 
 ### 编译
 
@@ -64,6 +65,7 @@ C-- 支持：
 make lexer_test
 make parser_test
 make ir_test
+make editor
 ```
 
 也可以一次性编译三个临时测试程序：
@@ -116,6 +118,30 @@ make run-ir
 ```text
 .tmp_build/output.ll
 ```
+
+### 运行 C-- 命令行编辑器
+
+编辑器使用 `ncurses` 实现，界面左侧是代码编辑区，右侧上半部分实时显示词法分析结果，右侧下半部分实时显示语法分析结果。
+
+```bash
+make editor
+make run-editor FILE=tests/case1_ok/input.sy
+```
+
+快捷键：
+
+- `Ctrl-S`：保存当前文件。
+- `Ctrl-R`：取消修改，恢复到上次保存的内容。
+- `Ctrl-Q`：退出编辑器。
+- 方向键、`Home`、`End`、`PageUp`、`PageDown`：移动光标。
+- `Enter`、`Backspace`、`Delete`：基础编辑。
+- 鼠标点击右侧 `Tokens` 或 `Parser` 面板后，可以用滚轮滚动该面板。
+- 右侧面板获得焦点后，也可以用方向键、`PageUp`、`PageDown`、`Home`、`End` 滚动内容。
+- 如果终端没有正确传递鼠标事件，可以用 `F1/F2/F3` 切换焦点到编辑区、Tokens 面板、Parser 面板。
+- `[` 和 `]` 可以滚动当前焦点区域。
+- 编辑区光标落在某个 token 上时，左侧对应 token、右侧 token 输出行和语法分析中相关行会高亮。
+- 词法/语法错误也会在左侧编辑区用红色加粗下划线标出；如果错误发生在行尾或空行，会在对应位置显示红色 `~`。
+- 回车会自动继承上一行缩进；在 `{` 后回车会自动多缩进两个空格。
 
 清理临时编译和输出文件：
 

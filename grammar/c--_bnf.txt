@@ -1,0 +1,100 @@
+This is the BNF grammar used by the current parser.
+The top-level decl/function grammar is left-factored so SLR can distinguish int a; from int add(...).
+$ means epsilon. EOF means the end token from the lexer input.
+
+1.	Program -> CompUnit
+2.	CompUnit -> TopList
+3.	TopList -> TopItem TopList
+4.	TopList -> $
+5.	TopItem -> ConstDecl
+6.	TopItem -> Type Name TopAfterTypeName
+7.	TopItem -> void Name ( FuncFParamsOpt ) Block
+8.	TopAfterTypeName -> ( FuncFParamsOpt ) Block
+9.	TopAfterTypeName -> TopVarDefRest VarDefList ;
+10.	TopVarDefRest -> $
+11.	TopVarDefRest -> = InitVal
+12.	Decl -> ConstDecl
+13.	Decl -> VarDecl
+14.	ConstDecl -> const Type ConstDef ConstDefList ;
+15.	ConstDefList -> , ConstDef ConstDefList
+16.	ConstDefList -> $
+17.	ConstDef -> Name = ConstInitVal
+18.	ConstInitVal -> ConstExp
+19.	VarDecl -> Type VarDef VarDefList ;
+20.	VarDefList -> , VarDef VarDefList
+21.	VarDefList -> $
+22.	VarDef -> Name
+23.	VarDef -> Name = InitVal
+24.	InitVal -> Exp
+25.	FuncDef -> FuncType Name ( FuncFParamsOpt ) Block
+26.	FuncType -> void
+27.	FuncType -> int
+28.	Type -> int
+29.	Type -> float
+30.	FuncFParamsOpt -> FuncFParams
+31.	FuncFParamsOpt -> $
+32.	FuncFParams -> Param ParamListTail
+33.	ParamListTail -> , Param ParamListTail
+34.	ParamListTail -> $
+35.	Param -> Type Name
+36.	Block -> { BlockItems }
+37.	BlockItems -> BlockItem BlockItems
+38.	BlockItems -> $
+39.	BlockItem -> Decl
+40.	BlockItem -> Stmt
+41.	Stmt -> LVal = Exp ;
+42.	Stmt -> ExpOpt ;
+43.	Stmt -> Block
+44.	Stmt -> if ( Cond ) Stmt ElseOpt
+45.	ElseOpt -> else Stmt
+46.	ElseOpt -> $
+47.	Stmt -> return ReturnExpOpt ;
+48.	ExpOpt -> Exp
+49.	ExpOpt -> $
+50.	ReturnExpOpt -> Exp
+51.	ReturnExpOpt -> $
+52.	Exp -> LOrExp
+53.	Cond -> LOrExp
+54.	LVal -> Name
+55.	PrimaryExp -> ( Exp )
+56.	PrimaryExp -> LVal
+57.	PrimaryExp -> Number
+58.	Number -> IntConst
+59.	Number -> floatConst
+60.	UnaryExp -> PrimaryExp
+61.	UnaryExp -> Name ( FuncRParamsOpt )
+62.	UnaryExp -> UnaryOp UnaryExp
+63.	UnaryOp -> +
+64.	UnaryOp -> -
+65.	UnaryOp -> !
+66.	FuncRParamsOpt -> FuncRParams
+67.	FuncRParamsOpt -> $
+68.	FuncRParams -> Exp FuncRParamsTail
+69.	FuncRParamsTail -> , Exp FuncRParamsTail
+70.	FuncRParamsTail -> $
+71.	MulExp -> UnaryExp
+72.	MulExp -> MulExp MulOp UnaryExp
+73.	MulOp -> *
+74.	MulOp -> /
+75.	MulOp -> %
+76.	AddExp -> MulExp
+77.	AddExp -> AddExp AddOp MulExp
+78.	AddOp -> +
+79.	AddOp -> -
+80.	RelExp -> AddExp
+81.	RelExp -> RelExp RelOp AddExp
+82.	RelOp -> <
+83.	RelOp -> >
+84.	RelOp -> <=
+85.	RelOp -> >=
+86.	EqExp -> RelExp
+87.	EqExp -> EqExp EqOp RelExp
+88.	EqOp -> ==
+89.	EqOp -> !=
+90.	LAndExp -> EqExp
+91.	LAndExp -> LAndExp && EqExp
+92.	LOrExp -> LAndExp
+93.	LOrExp -> LOrExp || LAndExp
+94.	ConstExp -> AddExp
+95.	Name -> Ident
+96.	Name -> main
