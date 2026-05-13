@@ -110,10 +110,10 @@ void printHelp() {
         << "  all     Same as ir. This is the default when mode is omitted.\n"
         << "\n"
         << "Examples:\n"
-        << "  c--compiler tests/case1_ok/input.sy\n"
-        << "  c--compiler lexer tests/case1_ok/input.sy -o output/lex_case\n"
-        << "  c--compiler parser tests/case1_ok/input.sy\n"
-        << "  c--compiler ide tests/case1_ok/input.sy\n";
+        << "  c--compiler tests/ok_001_minimal_return.sy\n"
+        << "  c--compiler lexer tests/ok_001_minimal_return.sy -o output/lex_case\n"
+        << "  c--compiler parser tests/ok_001_minimal_return.sy\n"
+        << "  c--compiler ide tests/ok_001_minimal_return.sy\n";
 }
 
 } // namespace cminus
