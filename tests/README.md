@@ -8,7 +8,7 @@
 - `ir_error_*.sy`：预期词法和语法通过、IR 生成失败。
 - `ir_invalid_*.sy`：编译器流程可能返回成功，但生成的 LLVM IR 不能通过 `clang` 校验。
 
-注意：当前词法分析器不支持注释，所以样例源码中不写 `//` 或 `/* */` 注释，避免注释本身干扰测试结论。
+注意：当前词法分析器支持 `//` 单行注释和 `/* ... */` 多行注释。注释会被跳过，不生成 token。
 
 | 文件 | 预期 | 失败阶段 | 覆盖点 | 预期结果 |
 |---|---|---|---|---|
@@ -23,11 +23,14 @@
 | `ok_009_function_call.sy` | 正确 | 无 | 多函数定义、函数调用、参数传递 | 完整流程通过，退出码 14 |
 | `ok_010_void_function_expr_stmt.sy` | 正确 | 无 | `void` 函数、表达式语句、空语句 | 完整流程通过，退出码 6 |
 | `ok_011_block_scope.sy` | 正确 | 无 | 代码块和局部作用域遮蔽 | 完整流程通过，退出码 1 |
+| `ok_012_line_comment.sy` | 正确 | 无 | `//` 单行注释 | 完整流程通过，退出码 11 |
+| `ok_013_block_comment.sy` | 正确 | 无 | `/* ... */` 多行注释 | 完整流程通过，退出码 6 |
 | `lex_error_101_illegal_at.sy` | 错误 | lexer | 非法字符 `@` | 报词法错误 |
 | `lex_error_102_bad_float_dot.sy` | 错误 | lexer | 不完整浮点数 `1.` | 报词法错误 |
 | `lex_error_103_non_ascii.sy` | 错误 | lexer | 非 ASCII 标识符 | 报词法错误 |
 | `lex_error_104_array_bracket.sy` | 错误 | lexer | 数组符号 `[` `]` 未支持 | 报词法错误 |
 | `lex_error_105_string_literal.sy` | 错误 | lexer | 字符串字面量未支持 | 报词法错误 |
+| `lex_error_106_unclosed_block_comment.sy` | 错误 | lexer | 未闭合的多行注释 | 报词法错误 |
 | `parse_error_201_missing_semicolon.sy` | 错误 | parser | 缺少分号 | 报语法错误 |
 | `parse_error_202_keyword_as_identifier.sy` | 错误 | parser | 关键字作标识符 | 报语法错误 |
 | `parse_error_203_unmatched_brace.sy` | 错误 | parser | 缺少右花括号 | 报语法错误 |

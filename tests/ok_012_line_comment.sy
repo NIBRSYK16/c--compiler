@@ -1,0 +1,5 @@
+int main() {
+    int a = 5; // this comment should be ignored
+    int b = 6;
+    return a + b;
+}

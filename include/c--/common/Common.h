@@ -41,6 +41,9 @@ struct Config {
     std::string outputDir;
     Stage stage = Stage::All;
     bool showHelp = false;
+    bool emitAssembly = false;
+    bool emitObject = false;
+    bool runExecutable = false;
 };
 
 struct LexResult {

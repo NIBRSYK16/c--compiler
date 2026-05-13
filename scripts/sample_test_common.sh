@@ -21,6 +21,8 @@ expected_ok_exit() {
         ok_009_function_call) echo 14 ;;
         ok_010_void_function_expr_stmt) echo 6 ;;
         ok_011_block_scope) echo 1 ;;
+        ok_012_line_comment) echo 11 ;;
+        ok_013_block_comment) echo 6 ;;
         *) echo "unknown" ;;
     esac
 }
