@@ -12,8 +12,7 @@
 
 相关源码：
 
-- [Token.h](../include/c--/common/Token.h)：词法分析输出的 token 数据结构。
-- [Result.h](../include/c--/common/Result.h)：`ParseResult` 返回结构。
+- [Common.h](../include/c--/common/Common.h)：词法分析输出的 token 数据结构和 `ParseResult` 返回结构。
 - [AST.h](../include/c--/parser/AST.h)：AST 节点结构和节点名约定。
 - [parser.h](../include/c--/parser/parser.h)：`Parser` 类接口。
 - [parser.cpp](../src/parser/parser.cpp)：SLR 语法分析器完整实现。
@@ -168,8 +167,8 @@ struct SemanticValue {
     std::string text;
     int line = -1;
     int column = -1;
-    std::unique_ptr<ASTNode> ast;
-    std::vector<std::unique_ptr<ASTNode> > list;
+    ASTNode* ast;
+    std::vector<ASTNode*> list;
 };
 ```
 
@@ -681,7 +680,7 @@ if (action.type == ActionType::Shift) {
     value.text = input[index].lexeme;
     value.line = input[index].line;
     value.column = input[index].column;
-    valueStack.push_back(std::move(value));
+    valueStack.push_back(value);
     stateStack.push_back(action.value);
     index++;
 }
@@ -716,7 +715,7 @@ log << logNo++ << "\t" << stackTopSymbol(valueStack) << "#" << lookahead << "\tm
 const Production& production = grammar.productions[action.value];
 std::vector<SemanticValue> rhs(production.rhs.size());
 for (int i = (int)production.rhs.size() - 1; i >= 0; i--) {
-    rhs[i] = std::move(valueStack.back());
+    rhs[i] = valueStack.back();
     valueStack.pop_back();
     stateStack.pop_back();
 }
@@ -768,7 +767,8 @@ log << logNo++ << "\t" << production.lhs << "#" << lookahead
 if (action.type == ActionType::Accept) {
     result.success = true;
     if (!valueStack.empty()) {
-        result.root = std::move(valueStack.back().ast);
+        result.root.reset(valueStack.back().ast);
+        valueStack.back().ast = NULL;
     }
     return result;
 }
@@ -788,7 +788,7 @@ struct ASTNode {
     std::string value;
     int line = -1;
     int column = -1;
-    std::vector<std::unique_ptr<ASTNode>> children;
+    std::vector<ASTNode*> children;
 };
 ```
 
@@ -847,8 +847,8 @@ InitVal -> Exp
 
 ```cpp
 if (tag == "pass" || tag == "program" || tag == "paren") {
-    result.ast = std::move(rhs[index].ast);
-    result.list = std::move(rhs[index].list);
+    result.ast = rhs[index].ast;
+    result.list = rhs[index].list;
     result.text = rhs[index].text;
     ...
 }
@@ -871,9 +871,9 @@ FuncDef -> FuncType Name ( FuncFParamsOpt ) Block
 ```cpp
 if (tag == "func_def") {
     result.ast = makeNode(ASTName::FuncDef, rhs[1].text, rhs[1].line, rhs[1].column);
-    result.ast->addChild(std::move(rhs[0].ast));
-    result.ast->addChild(std::move(rhs[3].ast));
-    result.ast->addChild(std::move(rhs[5].ast));
+    result.ast->addChild(rhs[0].ast);
+    result.ast->addChild(rhs[3].ast);
+    result.ast->addChild(rhs[5].ast);
     return result;
 }
 ```
@@ -922,8 +922,8 @@ VarDef -> Name = InitVal
 ```cpp
 if (tag == "var_decl") {
     result.ast = makeNode(ASTName::VarDecl, "", rhs[0].line, rhs[0].column);
-    result.ast->addChild(std::move(rhs[0].ast));
-    result.ast->addChild(std::move(rhs[1].ast));
+    result.ast->addChild(rhs[0].ast);
+    result.ast->addChild(rhs[1].ast);
     appendList(result.ast->children, rhs[2].list);
     return result;
 }
@@ -962,8 +962,8 @@ VarDecl
 ```cpp
 if (tag == "assign_stmt") {
     result.ast = makeNode(ASTName::AssignStmt, "", rhs[0].line, rhs[0].column);
-    result.ast->addChild(std::move(rhs[0].ast));
-    result.ast->addChild(std::move(rhs[2].ast));
+    result.ast->addChild(rhs[0].ast);
+    result.ast->addChild(rhs[2].ast);
     return result;
 }
 ```
@@ -984,7 +984,7 @@ AssignStmt
 if (tag == "return_stmt") {
     result.ast = makeNode(ASTName::ReturnStmt, "", rhs[0].line, rhs[0].column);
     if (rhs[1].ast) {
-        result.ast->addChild(std::move(rhs[1].ast));
+        result.ast->addChild(rhs[1].ast);
     }
     return result;
 }
@@ -1032,10 +1032,10 @@ BinaryExpr value=+
 二元表达式构造函数：
 
 ```cpp
-std::unique_ptr<ASTNode> makeBinary(
+ASTNode* makeBinary(
     const std::string& op,
-    std::unique_ptr<ASTNode> left,
-    std::unique_ptr<ASTNode> right
+    ASTNode* left,
+    ASTNode* right
 )
 ```
 
@@ -1043,7 +1043,7 @@ std::unique_ptr<ASTNode> makeBinary(
 
 ```cpp
 if (tag == "binary_expr") {
-    result.ast = makeBinary(rhs[1].text, std::move(rhs[0].ast), std::move(rhs[2].ast));
+    result.ast = makeBinary(rhs[1].text, rhs[0].ast, rhs[2].ast);
     return result;
 }
 ```
@@ -1053,7 +1053,7 @@ if (tag == "binary_expr") {
 ```cpp
 if (tag == "unary_expr") {
     result.ast = makeNode(ASTName::UnaryExpr, rhs[0].text, rhs[0].line, rhs[0].column);
-    result.ast->addChild(std::move(rhs[1].ast));
+    result.ast->addChild(rhs[1].ast);
     return result;
 }
 ```
@@ -1086,10 +1086,10 @@ ElseOpt -> $
 ```cpp
 if (tag == "if_stmt") {
     result.ast = makeNode(ASTName::IfStmt, "", rhs[0].line, rhs[0].column);
-    result.ast->addChild(std::move(rhs[2].ast));
-    result.ast->addChild(std::move(rhs[4].ast));
+    result.ast->addChild(rhs[2].ast);
+    result.ast->addChild(rhs[4].ast);
     if (rhs[5].ast) {
-        result.ast->addChild(std::move(rhs[5].ast));
+        result.ast->addChild(rhs[5].ast);
     }
     return result;
 }

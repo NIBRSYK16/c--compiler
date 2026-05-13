@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "c--/common/Result.h"
+#include "c--/common/Common.h"
 
 namespace cminus {
 

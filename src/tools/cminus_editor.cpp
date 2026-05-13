@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "c--/common/Token.h"
+#include "c--/common/Common.h"
 #include "c--/lexer/lexer.h"
 #include "c--/parser/parser.h"
 
@@ -174,7 +174,7 @@ void collectAST(const cminus::ASTNode* node, int depth, std::vector<std::string>
     out.push_back(line);
 
     for (size_t i = 0; i < node->children.size(); i++) {
-        collectAST(node->children[i].get(), depth + 1, out, limit);
+        collectAST(node->children[i], depth + 1, out, limit);
     }
 }
 

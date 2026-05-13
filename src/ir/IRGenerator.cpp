@@ -216,7 +216,7 @@ namespace cminus
                     // 对于未知节点类型，递归访问子节点
                     for (auto &child : node->children)
                     {
-                        visit(child.get());
+                        visit(child);
                     }
                 }
             }
@@ -227,7 +227,7 @@ namespace cminus
                 // 创建Module程序根节点
                 for (auto &child : node->children)
                 {
-                    visit(child.get());
+                    visit(child);
                 }
                 // 离开全局作用域
                 isGlobalScope = false;
@@ -251,7 +251,7 @@ namespace cminus
                 }
 
                 // 第0个子节点是返回类型
-                const ASTNode *returnTypeNode = node->children[0].get();
+                const ASTNode *returnTypeNode = node->children[0];
                 if (returnTypeNode->name != "Type")
                 {
                     throw std::runtime_error("First child of FuncDef must be Type");
@@ -266,7 +266,7 @@ namespace cminus
                 Type *returnType = getTypeFromName(returnTypeName);
 
                 // 第1个子节点是参数列表
-                const ASTNode *paramListNode = node->children[1].get();
+                const ASTNode *paramListNode = node->children[1];
                 if (paramListNode->name != "ParamList")
                 {
                     throw std::runtime_error("Second child of FuncDef must be ParamList");
@@ -283,7 +283,7 @@ namespace cminus
                         // Param节点：value=参数名，第0个子节点是Type
                         if (!paramChild->children.empty())
                         {
-                            const ASTNode *paramTypeNode = paramChild->children[0].get();
+                            const ASTNode *paramTypeNode = paramChild->children[0];
                             if (paramTypeNode->name == "Type")
                             {
                                 Type *paramType = getTypeFromName(paramTypeNode->value);
@@ -329,7 +329,7 @@ namespace cminus
                 // 处理函数体（第2个子节点是Block）
                 if (node->children.size() > 2)
                 {
-                    const ASTNode *blockNode = node->children[2].get();
+                    const ASTNode *blockNode = node->children[2];
                     if (blockNode->name == "Block")
                     {
                         visitBlock(blockNode);
@@ -369,7 +369,7 @@ namespace cminus
                 // 处理块内的所有语句
                 for (auto &child : node->children)
                 {
-                    visit(child.get());
+                    visit(child);
                 }
 
                 // 退出作用域
@@ -380,7 +380,7 @@ namespace cminus
                 // 创建返回指令
                 if (!node->children.empty())
                 {
-                    visit(node->children[0].get());
+                    visit(node->children[0]);
                     Value *retValue = popValue(); // 从值栈弹出返回值
                     if (!retValue)
                     {
@@ -412,11 +412,11 @@ namespace cminus
                 }
 
                 // 计算左表达式
-                visit(node->children[0].get());
+                visit(node->children[0]);
                 Value *left = popValue();
 
                 // 计算右表达式
-                visit(node->children[1].get());
+                visit(node->children[1]);
                 Value *right = popValue();
 
                 if (!left || !right)
@@ -530,13 +530,13 @@ namespace cminus
                 // 第0个子节点是Type
                 if (node->children.empty())
                     return;
-                const ASTNode *typeNode = node->children[0].get();
+                const ASTNode *typeNode = node->children[0];
                 Type *varType = getTypeFromName(typeNode->value);
 
                 // 处理后续的VarDef节点
                 for (size_t i = 1; i < node->children.size(); i++)
                 {
-                    const ASTNode *varDefNode = node->children[i].get();
+                    const ASTNode *varDefNode = node->children[i];
                     if (varDefNode->name == "VarDef")
                     {
                         visitVarDef(varDefNode, varType); // 调用visitVarDef函数
@@ -562,7 +562,7 @@ namespace cminus
                     if (!node->children.empty())
                     {
                         // 计算初始化表达式
-                        const ASTNode *initExprNode = node->children[0].get();
+                        const ASTNode *initExprNode = node->children[0];
                         visit(initExprNode);
                         Value *exprValue = popValue();
 
@@ -601,7 +601,7 @@ namespace cminus
                     // 如果有初始化表达式
                     if (!node->children.empty())
                     {
-                        visit(node->children[0].get()); // 计算初始化表达式
+                        visit(node->children[0]); // 计算初始化表达式
                         Value *initValue = popValue();
                         if (initValue)
                         {
@@ -632,7 +632,7 @@ namespace cminus
                 if (node->children.empty())
                     return;
 
-                const ASTNode *typeNode = node->children[0].get();
+                const ASTNode *typeNode = node->children[0];
                 if (typeNode->name != "Type")
                 {
                     throw std::runtime_error("First child of ConstDecl must be Type");
@@ -643,7 +643,7 @@ namespace cminus
                 // 处理后续的ConstDef节点
                 for (size_t i = 1; i < node->children.size(); i++)
                 {
-                    const ASTNode *constDefNode = node->children[i].get();
+                    const ASTNode *constDefNode = node->children[i];
                     if (constDefNode->name == "ConstDef")
                     {
                         // 调用visitConstDef函数
@@ -669,7 +669,7 @@ namespace cminus
                 }
 
                 // 计算初始化表达式
-                const ASTNode *initExprNode = node->children[0].get();
+                const ASTNode *initExprNode = node->children[0];
                 visit(initExprNode);
                 Value *initValue = popValue();
 
@@ -731,7 +731,7 @@ namespace cminus
                 }
 
                 // 先处理右表达式
-                const ASTNode *exprNode = node->children[1].get();
+                const ASTNode *exprNode = node->children[1];
                 visit(exprNode);
                 Value *exprValue = popValue();
 
@@ -741,7 +741,7 @@ namespace cminus
                 }
 
                 // 处理左值
-                const ASTNode *lvalNode = node->children[0].get();
+                const ASTNode *lvalNode = node->children[0];
                 if (lvalNode->name != "LVal")
                 {
                     throw std::runtime_error("First child of AssignStmt must be LVal");
@@ -807,7 +807,7 @@ namespace cminus
                 }
 
                 // 计算操作数
-                visit(node->children[0].get());
+                visit(node->children[0]);
                 Value *operand = popValue();
 
                 if (!operand)
@@ -894,7 +894,7 @@ namespace cminus
                 std::vector<Value *> args;
                 for (auto &child : node->children)
                 {
-                    visit(child.get()); // 访问每个参数表达式
+                    visit(child); // 访问每个参数表达式
                     Value *argValue = popValue();
                     if (!argValue)
                     {
@@ -923,7 +923,7 @@ namespace cminus
                 if (!node->children.empty())
                 {
                     // 有表达式，计算表达式值
-                    visit(node->children[0].get());
+                    visit(node->children[0]);
                     Value *exprValue = popValue();
                 }
                 // 空语句什么也不做
@@ -939,7 +939,7 @@ namespace cminus
                 }
 
                 // 访问条件表达式
-                const ASTNode *condNode = node->children[0].get();
+                const ASTNode *condNode = node->children[0];
                 visit(condNode);
                 Value *condValue = popValue();
 
@@ -992,7 +992,7 @@ namespace cminus
 
                 // 处理then块
                 builder->set_insert_point(thenBB);
-                const ASTNode *thenNode = node->children[1].get();
+                const ASTNode *thenNode = node->children[1];
                 visit(thenNode);
 
                 // then块结束后跳转到合并块
@@ -1005,7 +1005,7 @@ namespace cminus
                 if (hasElse && elseBB)
                 {
                     builder->set_insert_point(elseBB);
-                    const ASTNode *elseNode = node->children[2].get();
+                    const ASTNode *elseNode = node->children[2];
                     visit(elseNode);
 
                     // else块结束后跳转到合并块
@@ -1023,7 +1023,7 @@ namespace cminus
                 // 处理参数序列
                 for (auto &child : node->children)
                 {
-                    visit(child.get());
+                    visit(child);
                 }
             }
             void visitParam(const ASTNode *node)
@@ -1039,7 +1039,7 @@ namespace cminus
                     throw std::runtime_error("Param node must have a Type child");
                 }
 
-                const ASTNode *typeNode = node->children[0].get();
+                const ASTNode *typeNode = node->children[0];
                 if (typeNode->name != "Type")
                 {
                     throw std::runtime_error("First child of Param must be Type");

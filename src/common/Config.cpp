@@ -1,4 +1,4 @@
-#include "c--/common/Config.h"
+#include "c--/common/Common.h"
 
 #include <iostream>
 #include <stdexcept>

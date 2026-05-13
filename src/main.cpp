@@ -4,9 +4,7 @@
 #include <iostream>
 #include <string>
 
-#include "c--/common/Config.h"
-#include "c--/common/FileUtil.h"
-#include "c--/common/Result.h"
+#include "c--/common/Common.h"
 #include "c--/lexer/lexer.h"
 #include "c--/parser/parser.h"
 #include "c--/ir/IRGenerator.h"

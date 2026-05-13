@@ -9,7 +9,7 @@
 #include <vector>
 #include <cstdlib>
 
-#include "c--/common/Token.h"
+#include "c--/common/Common.h"
 #include "c--/parser/AST.h"
 
 namespace test_driver {
@@ -132,7 +132,7 @@ inline void writeASTText(const cminus::ASTNode* node, std::ostream& output, int 
     output << '\n';
 
     for (size_t i = 0; i < node->children.size(); i++) {
-        writeASTText(node->children[i].get(), output, depth + 1);
+        writeASTText(node->children[i], output, depth + 1);
     }
 }
 
@@ -144,7 +144,7 @@ inline int countLeadingSpaces(const std::string& line) {
     return count;
 }
 
-inline std::unique_ptr<cminus::ASTNode> parseASTLine(const std::string& text) {
+inline cminus::ASTNode* parseASTLine(const std::string& text) {
     std::string name = text;
     std::string value;
 
@@ -179,21 +179,20 @@ inline std::unique_ptr<cminus::ASTNode> readSimpleAST(const std::string& path) {
 
         int depth = spaces / 2;
         std::string text = line.substr(spaces);
-        std::unique_ptr<cminus::ASTNode> node = parseASTLine(text);
-        cminus::ASTNode* raw = node.get();
+        cminus::ASTNode* node = parseASTLine(text);
 
         if (depth == 0) {
-            root = std::move(node);
+            root.reset(node);
             stack.clear();
-            stack.push_back(raw);
+            stack.push_back(node);
         } else {
             if (depth > (int)stack.size()) {
                 throw std::runtime_error("bad AST parent depth: " + line);
             }
 
             stack.resize(depth);
-            stack.back()->addChild(std::move(node));
-            stack.push_back(raw);
+            stack.back()->addChild(node);
+            stack.push_back(node);
         }
     }
 

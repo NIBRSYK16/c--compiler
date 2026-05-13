@@ -3,9 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <memory>
 #include <ostream>
-#include <utility>
 
 namespace cminus {
 
@@ -40,28 +38,35 @@ struct ASTNode {
     int line = -1;
     int column = -1;
 
-    std::vector<std::unique_ptr<ASTNode>> children;
+    std::vector<ASTNode*> children;
 
     ASTNode() = default;
 
     ASTNode(const std::string& nodeName, const std::string& nodeValue = "", int nodeLine = -1, int nodeColumn = -1)
         : name(nodeName), value(nodeValue), line(nodeLine), column(nodeColumn) {}
 
-    ASTNode* addChild(std::unique_ptr<ASTNode> child) {
-        ASTNode* raw = child.get();
-        // unique_ptr 不能复制，这里用 move 表示把子节点所有权交给 children。
-        children.push_back(std::move(child));
-        return raw;
+    ~ASTNode() {
+        for (size_t i = 0; i < children.size(); i++) {
+            delete children[i];
+        }
+    }
+
+    ASTNode* addChild(ASTNode* child) {
+        if (child == NULL) {
+            return NULL;
+        }
+        children.push_back(child);
+        return child;
     }
 };
 
-inline std::unique_ptr<ASTNode> createNode(
+inline ASTNode* createNode(
     const std::string& name,
     const std::string& value = "",
     int line = -1,
     int column = -1
 ) {
-    return std::unique_ptr<ASTNode>(new ASTNode(name, value, line, column));
+    return new ASTNode(name, value, line, column);
 }
 
 void printAST(const ASTNode* node, std::ostream& os, int depth = 0);

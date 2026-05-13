@@ -55,11 +55,11 @@ struct SemanticValue {
     std::string text;
     int line = -1;
     int column = -1;
-    std::unique_ptr<ASTNode> ast;
-    std::vector<std::unique_ptr<ASTNode> > list;
+    ASTNode* ast = NULL;
+    std::vector<ASTNode* > list;
 };
 
-std::unique_ptr<ASTNode> makeNode(const std::string& name, const std::string& value = "", int line = -1, int column = -1) {
+ASTNode* makeNode(const std::string& name, const std::string& value = "", int line = -1, int column = -1) {
     return createNode(name, value, line, column);
 }
 
@@ -528,16 +528,17 @@ private:
     }
 };
 
-void appendList(std::vector<std::unique_ptr<ASTNode> >& target, std::vector<std::unique_ptr<ASTNode> >& source) {
+void appendList(std::vector<ASTNode* >& target, std::vector<ASTNode* >& source) {
     for (size_t i = 0; i < source.size(); i++) {
-        target.push_back(std::move(source[i]));
+        target.push_back(source[i]);
     }
+    source.clear();
 }
 
-std::unique_ptr<ASTNode> makeBinary(const std::string& op, std::unique_ptr<ASTNode> left, std::unique_ptr<ASTNode> right) {
-    std::unique_ptr<ASTNode> node = makeNode(ASTName::BinaryExpr, op);
-    node->addChild(std::move(left));
-    node->addChild(std::move(right));
+ASTNode* makeBinary(const std::string& op, ASTNode* left, ASTNode* right) {
+    ASTNode* node = makeNode(ASTName::BinaryExpr, op);
+    node->addChild(left);
+    node->addChild(right);
     return node;
 }
 
@@ -553,8 +554,8 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "pass" || tag == "program" || tag == "paren") {
         if (!rhs.empty()) {
-            result.ast = std::move(rhs[tag == "paren" ? 1 : 0].ast);
-            result.list = std::move(rhs[tag == "paren" ? 1 : 0].list);
+            result.ast = rhs[tag == "paren" ? 1 : 0].ast;
+            result.list = rhs[tag == "paren" ? 1 : 0].list;
             result.text = rhs[tag == "paren" ? 1 : 0].text;
             result.line = rhs[tag == "paren" ? 1 : 0].line;
             result.column = rhs[tag == "paren" ? 1 : 0].column;
@@ -569,7 +570,7 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
     if (tag == "comp_unit") {
         result.ast = makeNode(ASTName::CompUnit);
         for (size_t i = 0; i < rhs[0].list.size(); i++) {
-            result.ast->addChild(std::move(rhs[0].list[i]));
+            result.ast->addChild(rhs[0].list[i]);
         }
         return result;
     }
@@ -580,7 +581,7 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "top_list_cons" || tag == "block_items_cons") {
         if (rhs[0].ast) {
-            result.list.push_back(std::move(rhs[0].ast));
+            result.list.push_back(rhs[0].ast);
         }
         appendList(result.list, rhs[1].list);
         return result;
@@ -589,7 +590,7 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
     if (tag == "list_const_def_cons" || tag == "list_var_def_cons" ||
         tag == "list_param_cons" || tag == "list_exp_cons") {
         if (rhs[1].ast) {
-            result.list.push_back(std::move(rhs[1].ast));
+            result.list.push_back(rhs[1].ast);
         }
         appendList(result.list, rhs[2].list);
         return result;
@@ -610,8 +611,8 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "const_decl") {
         result.ast = makeNode(ASTName::ConstDecl, "", rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[1].ast));
-        result.ast->addChild(std::move(rhs[2].ast));
+        result.ast->addChild(rhs[1].ast);
+        result.ast->addChild(rhs[2].ast);
         appendList(result.ast->children, rhs[3].list);
         return result;
     }
@@ -619,19 +620,23 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
     if (tag == "top_type_item") {
         if (rhs[2].text == "func") {
             result.ast = makeNode(ASTName::FuncDef, rhs[1].text, rhs[1].line, rhs[1].column);
-            result.ast->addChild(std::move(rhs[0].ast));
-            result.ast->addChild(std::move(rhs[2].ast->children[0]));
-            result.ast->addChild(std::move(rhs[2].ast->children[1]));
+            result.ast->addChild(rhs[0].ast);
+            ASTNode* tail = rhs[2].ast;
+            result.ast->addChild(tail->children[0]);
+            result.ast->addChild(tail->children[1]);
+            tail->children.clear();
+            delete tail;
+            rhs[2].ast = NULL;
             return result;
         }
 
         result.ast = makeNode(ASTName::VarDecl, "", rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[0].ast));
-        std::unique_ptr<ASTNode> firstVar = makeNode(ASTName::VarDef, rhs[1].text, rhs[1].line, rhs[1].column);
+        result.ast->addChild(rhs[0].ast);
+        ASTNode* firstVar = makeNode(ASTName::VarDef, rhs[1].text, rhs[1].line, rhs[1].column);
         if (rhs[2].ast) {
-            firstVar->addChild(std::move(rhs[2].ast));
+            firstVar->addChild(rhs[2].ast);
         }
-        result.ast->addChild(std::move(firstVar));
+        result.ast->addChild(firstVar);
         appendList(result.ast->children, rhs[2].list);
         return result;
     }
@@ -639,23 +644,23 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
     if (tag == "top_void_func") {
         result.ast = makeNode(ASTName::FuncDef, rhs[1].text, rhs[1].line, rhs[1].column);
         result.ast->addChild(makeNode(ASTName::Type, "void", rhs[0].line, rhs[0].column));
-        result.ast->addChild(std::move(rhs[3].ast));
-        result.ast->addChild(std::move(rhs[5].ast));
+        result.ast->addChild(rhs[3].ast);
+        result.ast->addChild(rhs[5].ast);
         return result;
     }
 
     if (tag == "top_func_tail") {
         result.text = "func";
         result.ast = makeNode("FuncTail");
-        result.ast->addChild(std::move(rhs[1].ast));
-        result.ast->addChild(std::move(rhs[3].ast));
+        result.ast->addChild(rhs[1].ast);
+        result.ast->addChild(rhs[3].ast);
         return result;
     }
 
     if (tag == "top_var_tail") {
         result.text = "var";
-        result.ast = std::move(rhs[0].ast);
-        result.list = std::move(rhs[1].list);
+        result.ast = rhs[0].ast;
+        result.list = rhs[1].list;
         return result;
     }
 
@@ -664,20 +669,20 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
     }
 
     if (tag == "var_def_rest_init") {
-        result.ast = std::move(rhs[1].ast);
+        result.ast = rhs[1].ast;
         return result;
     }
 
     if (tag == "const_def") {
         result.ast = makeNode(ASTName::ConstDef, rhs[0].text, rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[2].ast));
+        result.ast->addChild(rhs[2].ast);
         return result;
     }
 
     if (tag == "var_decl") {
         result.ast = makeNode(ASTName::VarDecl, "", rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[0].ast));
-        result.ast->addChild(std::move(rhs[1].ast));
+        result.ast->addChild(rhs[0].ast);
+        result.ast->addChild(rhs[1].ast);
         appendList(result.ast->children, rhs[2].list);
         return result;
     }
@@ -689,15 +694,15 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "var_def_init") {
         result.ast = makeNode(ASTName::VarDef, rhs[0].text, rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[2].ast));
+        result.ast->addChild(rhs[2].ast);
         return result;
     }
 
     if (tag == "func_def") {
         result.ast = makeNode(ASTName::FuncDef, rhs[1].text, rhs[1].line, rhs[1].column);
-        result.ast->addChild(std::move(rhs[0].ast));
-        result.ast->addChild(std::move(rhs[3].ast));
-        result.ast->addChild(std::move(rhs[5].ast));
+        result.ast->addChild(rhs[0].ast);
+        result.ast->addChild(rhs[3].ast);
+        result.ast->addChild(rhs[5].ast);
         return result;
     }
 
@@ -708,14 +713,14 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "param_list") {
         result.ast = makeNode(ASTName::ParamList);
-        result.ast->addChild(std::move(rhs[0].ast));
+        result.ast->addChild(rhs[0].ast);
         appendList(result.ast->children, rhs[1].list);
         return result;
     }
 
     if (tag == "param") {
         result.ast = makeNode(ASTName::Param, rhs[1].text, rhs[1].line, rhs[1].column);
-        result.ast->addChild(std::move(rhs[0].ast));
+        result.ast->addChild(rhs[0].ast);
         return result;
     }
 
@@ -727,31 +732,31 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "assign_stmt") {
         result.ast = makeNode(ASTName::AssignStmt, "", rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[0].ast));
-        result.ast->addChild(std::move(rhs[2].ast));
+        result.ast->addChild(rhs[0].ast);
+        result.ast->addChild(rhs[2].ast);
         return result;
     }
 
     if (tag == "expr_stmt") {
         result.ast = makeNode(ASTName::ExprStmt, "", rhs[0].line, rhs[0].column);
         if (rhs[0].ast) {
-            result.ast->addChild(std::move(rhs[0].ast));
+            result.ast->addChild(rhs[0].ast);
         }
         return result;
     }
 
     if (tag == "if_stmt") {
         result.ast = makeNode(ASTName::IfStmt, "", rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[2].ast));
-        result.ast->addChild(std::move(rhs[4].ast));
+        result.ast->addChild(rhs[2].ast);
+        result.ast->addChild(rhs[4].ast);
         if (rhs[5].ast) {
-            result.ast->addChild(std::move(rhs[5].ast));
+            result.ast->addChild(rhs[5].ast);
         }
         return result;
     }
 
     if (tag == "else_stmt") {
-        result.ast = std::move(rhs[1].ast);
+        result.ast = rhs[1].ast;
         return result;
     }
 
@@ -762,7 +767,7 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
     if (tag == "return_stmt") {
         result.ast = makeNode(ASTName::ReturnStmt, "", rhs[0].line, rhs[0].column);
         if (rhs[1].ast) {
-            result.ast->addChild(std::move(rhs[1].ast));
+            result.ast->addChild(rhs[1].ast);
         }
         return result;
     }
@@ -790,23 +795,23 @@ SemanticValue buildSemantic(const Production& production, std::vector<SemanticVa
 
     if (tag == "unary_expr") {
         result.ast = makeNode(ASTName::UnaryExpr, rhs[0].text, rhs[0].line, rhs[0].column);
-        result.ast->addChild(std::move(rhs[1].ast));
+        result.ast->addChild(rhs[1].ast);
         return result;
     }
 
     if (tag == "args") {
-        result.list.push_back(std::move(rhs[0].ast));
+        result.list.push_back(rhs[0].ast);
         appendList(result.list, rhs[1].list);
         return result;
     }
 
     if (tag == "binary_expr") {
-        result.ast = makeBinary(rhs[1].text, std::move(rhs[0].ast), std::move(rhs[2].ast));
+        result.ast = makeBinary(rhs[1].text, rhs[0].ast, rhs[2].ast);
         return result;
     }
 
     if (tag == "binary_expr_direct") {
-        result.ast = makeBinary(production.rhs[1], std::move(rhs[0].ast), std::move(rhs[2].ast));
+        result.ast = makeBinary(production.rhs[1], rhs[0].ast, rhs[2].ast);
         return result;
     }
 
@@ -900,7 +905,7 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
             value.text = input[index].lexeme;
             value.line = input[index].line;
             value.column = input[index].column;
-            valueStack.push_back(std::move(value));
+            valueStack.push_back(value);
             stateStack.push_back(action.value);
             index++;
             continue;
@@ -910,7 +915,7 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
             const Production& production = grammar.productions[action.value];
             std::vector<SemanticValue> rhs(production.rhs.size());
             for (int i = (int)production.rhs.size() - 1; i >= 0; i--) {
-                rhs[i] = std::move(valueStack.back());
+                rhs[i] = valueStack.back();
                 valueStack.pop_back();
                 stateStack.pop_back();
             }
@@ -932,7 +937,7 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
                 return result;
             }
 
-            valueStack.push_back(std::move(reduced));
+            valueStack.push_back(reduced);
             stateStack.push_back(gotoIt->second);
             continue;
         }
@@ -940,7 +945,8 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
         if (action.type == ActionType::Accept) {
             result.success = true;
             if (!valueStack.empty()) {
-                result.root = std::move(valueStack.back().ast);
+                result.root.reset(valueStack.back().ast);
+                valueStack.back().ast = NULL;
             }
             return result;
         }

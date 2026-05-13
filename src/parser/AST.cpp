@@ -20,7 +20,7 @@ void printAST(const ASTNode* node, std::ostream& os, int depth) {
     os << '\n';
 
     for (size_t i = 0; i < node->children.size(); i++) {
-        printAST(node->children[i].get(), os, depth + 1);
+        printAST(node->children[i], os, depth + 1);
     }
 }
 
