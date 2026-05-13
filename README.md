@@ -52,28 +52,28 @@ make c--compiler
 生成的程序是：
 
 ```text
-.tmp_build/c--compiler
+build/c--compiler
 ```
 
 使用格式：
 
 ```bash
-.tmp_build/c--compiler [lexer|parser|ir|ide|all] <file> [-o output_dir]
+build/c--compiler [lexer|parser|ir|ide|all] <file> [-o output_dir]
 ```
 
 如果不写模式，默认执行完整流程，也就是词法分析、语法分析、中间代码生成三个阶段：
 
 ```bash
-.tmp_build/c--compiler tests/case1_ok/input.sy
+build/c--compiler tests/case1_ok/input.sy
 ```
 
 常用模式：
 
 ```bash
-.tmp_build/c--compiler lexer tests/case1_ok/input.sy -o output/lexer_case
-.tmp_build/c--compiler parser tests/case1_ok/input.sy -o output/parser_case
-.tmp_build/c--compiler ir tests/case1_ok/input.sy -o output/ir_case
-.tmp_build/c--compiler ide tests/case1_ok/input.sy
+build/c--compiler lexer tests/case1_ok/input.sy -o output/lexer_case
+build/c--compiler parser tests/case1_ok/input.sy -o output/parser_case
+build/c--compiler ir tests/case1_ok/input.sy -o output/ir_case
+build/c--compiler ide tests/case1_ok/input.sy
 ```
 
 说明：
@@ -135,7 +135,7 @@ make run-lexer INPUT=tests/case1_ok/input.sy
 输出默认写到：
 
 ```text
-.tmp_build/token.tsv
+build/token.tsv
 ```
 
 ### 运行语法分析
@@ -144,11 +144,11 @@ make run-lexer INPUT=tests/case1_ok/input.sy
 make run-parser
 ```
 
-默认读取 `.tmp_build/token.tsv`，输出：
+默认读取 `build/token.tsv`，输出：
 
 ```text
-.tmp_build/ast.txt
-.tmp_build/reduce.txt
+build/ast.txt
+build/reduce.txt
 ```
 
 ### 运行中间代码生成
@@ -157,10 +157,10 @@ make run-parser
 make run-ir
 ```
 
-默认读取 `.tmp_build/ast.txt`，输出：
+默认读取 `build/ast.txt`，输出：
 
 ```text
-.tmp_build/output.ll
+build/output.ll
 ```
 
 ### 运行 C-- 命令行编辑器

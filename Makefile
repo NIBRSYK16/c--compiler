@@ -1,7 +1,7 @@
 CXX ?= g++
 CXXFLAGS ?= -std=c++11 -Wall -Wextra -Iinclude -I. -Ithird_part/compiler_ir/include
 
-BUILD_DIR := .tmp_build
+BUILD_DIR := build
 
 INPUT ?= tests/case1_ok/input.sy
 TOKENS ?= $(BUILD_DIR)/token.tsv
@@ -66,7 +66,7 @@ COMPILER_SRCS := \
 FILE ?= $(BUILD_DIR)/editor_buffer.sy
 OUTPUT ?=
 
-.PHONY: all lexer_test parser_test ir_test editor c--compiler run-lexer run-parser run-ir run-editor run-compiler clean-temp
+.PHONY: all lexer_test parser_test ir_test editor c--compiler run-lexer run-parser run-ir run-editor run-compiler clean-temp clean
 
 all: lexer_test parser_test ir_test editor c--compiler
 
@@ -93,29 +93,4 @@ $(IR_BIN): $(IR_SRCS) | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(IR_SRCS) -o $(IR_BIN)
 
 $(EDITOR_BIN): $(EDITOR_SRCS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) $(EDITOR_SRCS) -lncurses -o $(EDITOR_BIN)
-
-$(COMPILER_BIN): $(COMPILER_SRCS) | $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -DCMINUS_EDITOR_NO_MAIN $(COMPILER_SRCS) -lncurses -o $(COMPILER_BIN)
-
-run-lexer: $(LEXER_BIN)
-	$(LEXER_BIN) $(INPUT) $(TOKENS)
-	@echo "token output: $(TOKENS)"
-
-run-parser: $(PARSER_BIN)
-	$(PARSER_BIN) $(TOKENS) $(AST) $(REDUCE)
-	@echo "ast output: $(AST)"
-	@echo "reduce output: $(REDUCE)"
-
-run-ir: $(IR_BIN)
-	$(IR_BIN) $(AST) $(IR)
-	@echo "ir output: $(IR)"
-
-run-editor: $(EDITOR_BIN)
-	$(EDITOR_BIN) $(FILE)
-
-run-compiler: $(COMPILER_BIN)
-	$(COMPILER_BIN) $(INPUT) $(if $(OUTPUT),-o $(OUTPUT),)
-
-clean-temp:
-	rm -rf $(BUILD_DIR)
+	$(

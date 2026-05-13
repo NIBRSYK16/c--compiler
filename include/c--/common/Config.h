@@ -23,4 +23,4 @@ Config parseArgs(int argc, char** argv);
 std::string stageToString(Stage stage);
 void printHelp();
 
-} // namespace cminus
+} // namespac
