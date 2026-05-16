@@ -7,6 +7,7 @@
 #include "third_part/compiler_ir/include/IRprinter.h"
 #include "third_part/compiler_ir/include/Type.h"
 #include "third_part/compiler_ir/include/GlobalVariable.h"
+#include "third_part/compiler_ir/include/Instruction.h" // 对于逻辑and和or添加处理使用PhiInst
 #include <stdexcept>
 #include <map>
 #include <vector>
@@ -28,7 +29,7 @@ namespace cminus
             std::vector<Value *> valueStack;                              // 表达式值栈
             std::map<std::string, GlobalVariable *> globalSymbolTable;    // 全局符号表
             bool isGlobalScope = false;                                   // 当前是否在全局作用域
-
+            static int logicBlockCounter;                                 // 静态计数器用于生成唯一的基本块名称
         public:
             IRVisitor() = default;
             Value *popValue() // 取出表达式值栈栈顶
@@ -411,13 +412,35 @@ namespace cminus
                     throw std::runtime_error("BinaryExpr must have 2 children");
                 }
 
-                // 计算左表达式
+                // 计算左表达式 所有运算都可以计算
                 visit(node->children[0]);
                 Value *left = popValue();
-
-                // 计算右表达式
+                if (!left)
+                {
+                    throw std::runtime_error("Missing left operand in binary expression");
+                }
+                // 对于逻辑运算符，需要特殊处理短路求值
+                if (op == "&&" || op == "||")
+                {
+                    // 对于逻辑运算符，右表达式将在handleLogicalAnd/Or中计算
+                    // 只需要传递左表达式的值
+                    if (op == "&&")
+                    {
+                        handleLogicalAnd(node, left);
+                    }
+                    else // "||"
+                    {
+                        handleLogicalOr(node, left);
+                    }
+                    return; // 已经在辅助函数中push了结果
+                }
+                // 对于其他运算符正常计算右表达式
                 visit(node->children[1]);
                 Value *right = popValue();
+                if (!right)
+                {
+                    throw std::runtime_error("Missing right operand in binary expression");
+                }
 
                 if (!left || !right)
                 {
@@ -490,21 +513,33 @@ namespace cminus
                     {
                         result = builder->create_icmp_ge(left, right);
                     }
-                    // 逻辑运算（需要转换为布尔值）
-                    else if (op == "&&" || op == "||")
-                    {
-                        // 先将整数转换为布尔值
-                        Value *leftBool = builder->create_icmp_ne(left, ConstantInt::get(0, module));
-                        Value *rightBool = builder->create_icmp_ne(right, ConstantInt::get(0, module));
+                    // // 逻辑运算（需要转换为布尔值）
+                    // else if (op == "&&" || op == "||")
+                    // {
+                    //     // 先将整数转换为布尔值
+                    //     Value *leftBool = builder->create_icmp_ne(left, ConstantInt::get(0, module));
+                    //     Value *rightBool = builder->create_icmp_ne(right, ConstantInt::get(0, module));
 
-                        if (op == "&&")
-                        {
-                            result = builder->create_iand(leftBool, rightBool);
-                        }
-                        else
-                        { // "||"
-                            result = builder->create_ior(leftBool, rightBool);
-                        }
+                    //     if (op == "&&")
+                    //     {
+                    //         result = builder->create_iand(leftBool, rightBool);
+                    //     }
+                    //     else
+                    //     { // "||"
+                    //         result = builder->create_ior(leftBool, rightBool);
+                    //     }
+                    // }
+                    else if (op == "&&")
+                    {
+                        // 逻辑与：短路求值
+                        handleLogicalAnd(node, left);
+                        return; // 已经在handleLogicalAnd中push了结果
+                    }
+                    else if (op == "||")
+                    {
+                        // 逻辑或：短路求值
+                        handleLogicalOr(node, left);
+                        return; // 已经在handleLogicalOr中push了结果
                     }
                     else
                     {
@@ -973,16 +1008,21 @@ namespace cminus
                     throw std::runtime_error("If statement not inside a function");
                 }
 
-                // 创建基本块
-                BasicBlock *thenBB = BasicBlock::create(module, "if_then", func);
+                // 生成唯一的基本块名称
+                static int ifCounter = 0;
+                int ifId = ifCounter++;
+                std::string suffix = std::to_string(ifId);
+
+                // 使用唯一名称创建基本块
+                BasicBlock *thenBB = BasicBlock::create(module, "if_then_" + suffix, func);
                 BasicBlock *elseBB = nullptr;
-                BasicBlock *mergeBB = BasicBlock::create(module, "if_merge", func);
+                BasicBlock *mergeBB = BasicBlock::create(module, "if_merge_" + suffix, func);
 
                 // 如果有else块
                 bool hasElse = (node->children.size() > 2);
                 if (hasElse)
                 {
-                    elseBB = BasicBlock::create(module, "if_else", func);
+                    elseBB = BasicBlock::create(module, "if_else" + suffix, func);
                     builder->create_cond_br(boolCond, thenBB, elseBB);
                 }
                 else
@@ -1146,6 +1186,117 @@ namespace cminus
                     pushValue(varAddr);
                 }
             }
+            void handleLogicalAnd(const ASTNode *node, Value *leftVal)
+            {
+                // 获取当前函数
+                Function *func = currentFunc;
+                if (!func)
+                {
+                    throw std::runtime_error("Logical AND expression not inside a function");
+                }
+
+                // 生成唯一的基本块名称
+                int blockId = logicBlockCounter++;
+                std::string suffix = std::to_string(blockId);
+
+                // 将左值转换为布尔值
+                Value *leftBool = builder->create_icmp_ne(leftVal, ConstantInt::get(0, module));
+
+                // 使用唯一名称创建基本块
+                BasicBlock *thenBB = BasicBlock::create(module, "and_then_" + suffix, func);
+                BasicBlock *elseBB = BasicBlock::create(module, "and_else_" + suffix, func);
+                BasicBlock *mergeBB = BasicBlock::create(module, "and_merge_" + suffix, func);
+
+                // 条件跳转：左为真则计算右表达式，否则跳转到false
+                builder->create_cond_br(leftBool, thenBB, elseBB);
+
+                // thenBB: 计算右表达式
+                builder->set_insert_point(thenBB);
+                const ASTNode *rightExpr = node->children[1];
+                visit(rightExpr);
+                Value *rightVal = popValue();
+                if (!rightVal)
+                {
+                    throw std::runtime_error("Missing right operand in logical AND expression");
+                }
+                Value *rightBool = builder->create_icmp_ne(rightVal, ConstantInt::get(0, module));
+                builder->create_br(mergeBB);
+
+                // elseBB: 结果为false (0)
+                builder->set_insert_point(elseBB);
+                builder->create_br(mergeBB);
+
+                // mergeBB: phi指令合并结果
+                builder->set_insert_point(mergeBB);
+                // 创建phi指令（i1类型）
+                PhiInst *phi = PhiInst::create_phi(Type::get_int1_type(module), mergeBB);
+                // 设置phi指令名称
+                phi->set_name("phi_and_" + suffix);
+                phi->add_phi_pair_operand(rightBool, thenBB);
+                phi->add_phi_pair_operand(ConstantInt::get(0, module), elseBB);
+                // 将phi指令添加到基本块
+                mergeBB->add_instruction(phi);
+
+                // 将i1转换为i32
+                Value *result = builder->create_zext(phi, Type::get_int32_type(module));
+                pushValue(result);
+            }
+
+            void handleLogicalOr(const ASTNode *node, Value *leftVal)
+            {
+                // 获取当前函数
+                Function *func = currentFunc;
+                if (!func)
+                {
+                    throw std::runtime_error("Logical OR expression not inside a function");
+                }
+
+                // 生成唯一的基本块名称
+                int blockId = logicBlockCounter++;
+                std::string suffix = std::to_string(blockId);
+
+                // 将左值转换为布尔值
+                Value *leftBool = builder->create_icmp_ne(leftVal, ConstantInt::get(0, module));
+
+                // 使用唯一名称创建基本块
+                BasicBlock *thenBB = BasicBlock::create(module, "or_then_" + suffix, func);
+                BasicBlock *elseBB = BasicBlock::create(module, "or_else_" + suffix, func);
+                BasicBlock *mergeBB = BasicBlock::create(module, "or_merge_" + suffix, func);
+
+                // 条件跳转：左为真则跳转到true，否则计算右表达式
+                builder->create_cond_br(leftBool, elseBB, thenBB);
+
+                // thenBB: 计算右表达式
+                builder->set_insert_point(thenBB);
+                const ASTNode *rightExpr = node->children[1];
+                visit(rightExpr);
+                Value *rightVal = popValue();
+                if (!rightVal)
+                {
+                    throw std::runtime_error("Missing right operand in logical OR expression");
+                }
+                Value *rightBool = builder->create_icmp_ne(rightVal, ConstantInt::get(0, module));
+                builder->create_br(mergeBB);
+
+                // elseBB: 结果为true (1)
+                builder->set_insert_point(elseBB);
+                builder->create_br(mergeBB);
+
+                // mergeBB: phi指令合并结果
+                builder->set_insert_point(mergeBB);
+                // 创建phi指令（i1类型）
+                PhiInst *phi = PhiInst::create_phi(Type::get_int1_type(module), mergeBB);
+                // 设置phi指令名称
+                phi->set_name("phi_or_" + suffix);
+                phi->add_phi_pair_operand(rightBool, thenBB);
+                phi->add_phi_pair_operand(ConstantInt::get(1, module), elseBB);
+                // 将phi指令添加到基本块
+                mergeBB->add_instruction(phi);
+
+                // 将i1转换为i32
+                Value *result = builder->create_zext(phi, Type::get_int32_type(module));
+                pushValue(result);
+            }
             ~IRVisitor()
             {
                 delete builder;
@@ -1185,3 +1336,4 @@ namespace cminus
     }
 
 } // namespace cminus
+int cminus::IRVisitor::logicBlockCounter = 0;
