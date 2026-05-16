@@ -1,5 +1,0 @@
-reduce: BType -> int
-reduce: FuncType -> int
-reduce: Number -> IntConst
-reduce: PrimaryExp -> Number
-reduce: Exp -> PrimaryExp

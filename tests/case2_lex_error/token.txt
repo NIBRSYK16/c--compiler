@@ -1,6 +1,0 @@
-1:1	Keyword	int	int	int
-1:5	Identifier	Ident	main	main
-1:9	Separator	(	(	(
-1:10	Separator	)	)	)
-1:12	Separator	{	{	{
-2:3	Keyword	return	return	return

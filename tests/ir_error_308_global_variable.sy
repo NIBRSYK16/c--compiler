@@ -1,0 +1,7 @@
+int global_a;
+int global_b = 5;
+
+int main() {
+    global_a = 3;
+    return global_a + global_b;
+}

@@ -1,0 +1,9 @@
+int main() {
+    int a = 10;
+    /*
+       this whole block should be ignored
+       int fake = 100;
+    */
+    int b = 4;
+    return a - b;
+}

@@ -4,14 +4,16 @@
 #include <iostream>
 #include <string>
 
-#include "c--/common/Config.h"
-#include "c--/common/FileUtil.h"
-#include "c--/common/Result.h"
+#include "c--/common/Common.h"
 #include "c--/lexer/lexer.h"
 #include "c--/parser/parser.h"
 #include "c--/ir/IRGenerator.h"
 
 using namespace cminus;
+
+namespace cminus {
+int runEditor(const std::string& path);
+}
 
 namespace {
 
@@ -53,6 +55,10 @@ int main(int argc, char** argv) {
         if (config.inputFile.empty()) {
             printHelp();
             return failWithMessage("missing input file.");
+        }
+
+        if (config.stage == Stage::IDE) {
+            return runEditor(config.inputFile);
         }
 
         // 1. 创建输出目录
@@ -146,6 +152,13 @@ int main(int argc, char** argv) {
         }
 
         std::cout << "[Info] IR generation finished." << std::endl;
+
+        if (config.stage == Stage::IR) {
+            writeRunInfo(config, config.outputDir, true, "");
+            std::cout << "[Info] Finished at ir stage." << std::endl;
+            std::cout << "[Info] Results written to: " << config.outputDir << std::endl;
+            return 0;
+        }
 
         // 6. 完整流程结束
         writeRunInfo(config, config.outputDir, true, "");

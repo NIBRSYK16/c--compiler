@@ -1,0 +1,10 @@
+void touch(int x) {
+    return;
+}
+
+int main() {
+    int a = 6;
+    touch(a);
+    ;
+    return a;
+}

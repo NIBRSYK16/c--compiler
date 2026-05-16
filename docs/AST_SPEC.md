@@ -12,7 +12,7 @@ struct ASTNode {
     std::string value;    // 节点自己的值，比如 main、+、123
     int line;
     int column;
-    std::vector<std::unique_ptr<ASTNode>> children;
+    std::vector<ASTNode*> children;
 };
 ```
 
@@ -25,7 +25,7 @@ struct ASTNode {
 创建节点时尽量这样写，不要手写字符串：
 
 ```cpp
-std::unique_ptr<ASTNode> node = createNode(ASTName::FuncDef, "main");
+ASTNode* node = createNode(ASTName::FuncDef, "main");
 ```
 
 添加子节点：
@@ -37,7 +37,7 @@ node->addChild(createNode(ASTName::Type, "int"));
 如果子节点已经提前存在，例如 `child`，就这样加：
 
 ```cpp
-node->addChild(std::move(child));
+node->addChild(child);
 ```
 
 ## 节点表

@@ -1,0 +1,12 @@
+int main() {
+    int a = 1;
+    int b = 2;
+    if (a) {
+        if (b) {
+            return 7;
+        } else {
+            return 3;
+        }
+    }
+    return 0;
+}

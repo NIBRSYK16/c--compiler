@@ -64,7 +64,14 @@
 
 ### 2026-05-08
 检查调用第三方库的细节并根据编译原理大作业.docx进行中间代码生成部分的修正
-- [ ] create_iand和create_ior第三方库内部调用create_sdiv有问题 不知能否修改第三方库
+- [x] create_iand和create_ior第三方库内部调用create_sdiv有问题 不知能否修改第三方库
 - [ ] 调用third-part已有函数得到的是label_entry而非entry输出偏差是因为第三方库内部自动加入"label_"前缀 不知能否修改第三方库
 - [x] 增加全局变量支持 区分全局和局部作用域 使用全局数据区而非栈分配进行存储
 - [x] cline给出的所有单独AST节点到中间代码生成的样例均运行成功没有看出什么问题
+
+### 2026-05-16
+对于visitBinaryExpr中&&和||的处理逻辑进行修改使用比较指令条件跳转和基本块实现短路求值
+- [x] 添加辅助函数handleLogicalAnd和handleLogicalOr
+- [x] 改变visitBinaryExpr结构不针对逻辑表达式计算右值 &&和||调用新的辅助函数不使用IRBuilder
+- [x] 针对ir_invalid_311_logic_and_or.sy样例进行生成测试
+- [x] 完善visitIfStmt使得中间代码生成使用唯一的基本块名称

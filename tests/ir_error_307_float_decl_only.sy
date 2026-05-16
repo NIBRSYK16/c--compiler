@@ -1,0 +1,6 @@
+float global_f;
+
+int main() {
+    float local_f;
+    return 0;
+}

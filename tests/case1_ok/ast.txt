@@ -1,7 +1,0 @@
-CompUnit
-  FuncDef value=main
-    Type value=int
-    ParamList
-    Block
-      ReturnStmt
-        IntLiteral value=0

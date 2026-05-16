@@ -21,7 +21,7 @@
 `input.sy`（文件）
 -> `source`（`std::string`）
 -> `tokens`（`std::vector<Token>`）
--> `AST`（`std::unique_ptr<ASTNode>`）
+-> `AST`（`ASTNode` 树，根节点由 `ParseResult` 管理）
 -> `irText`（`std::string`）
 
 输出文件（位于本次输出目录）：

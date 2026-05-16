@@ -2,8 +2,7 @@
 
 #include <vector>
 
-#include "c--/common/Result.h"
-#include "c--/common/Token.h"
+#include "c--/common/Common.h"
 
 namespace cminus {
 

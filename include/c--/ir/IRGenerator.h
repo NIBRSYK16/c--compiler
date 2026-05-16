@@ -1,6 +1,6 @@
 #pragma once
 
-#include "c--/common/Result.h"
+#include "c--/common/Common.h"
 #include "c--/parser/AST.h"
 
 namespace cminus

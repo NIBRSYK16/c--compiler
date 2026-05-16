@@ -1,0 +1,12 @@
+int add(int x, int y) {
+    return x + y;
+}
+
+int mul2(int x) {
+    return x * 2;
+}
+
+int main() {
+    int a = add(3, 4);
+    return mul2(a);
+}

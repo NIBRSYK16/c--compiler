@@ -1,9 +1,0 @@
-reduce: BType -> int
-reduce: FuncType -> int
-reduce: Number -> IntConst
-reduce: PrimaryExp -> Number
-reduce: Exp -> PrimaryExp
-reduce: Stmt -> return Exp ;
-reduce: Block -> { Stmt }
-reduce: FuncDef -> FuncType Ident ( ) Block
-reduce: CompUnit -> FuncDef

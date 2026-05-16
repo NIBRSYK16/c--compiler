@@ -7,8 +7,7 @@
 
 相关源码：
 
-- [Token.h](../include/c--/common/Token.h)：token 数据结构。
-- [Result.h](../include/c--/common/Result.h)：`LexResult` 返回结构。
+- [Common.h](../include/c--/common/Common.h)：token 数据结构和 `LexResult` 返回结构。
 - [automata.h](../include/c--/lexer/automata.h)：NFA/DFA 数据结构和接口。
 - [automata.cpp](../src/lexer/automata.cpp)：自动机构造、确定化、最小化。
 - [lexer.h](../include/c--/lexer/lexer.h)：`Lexer` 类接口。
@@ -45,7 +44,7 @@ struct LexResult {
 
 ## 2. Token 数据结构
 
-定义位置：[Token.h](../include/c--/common/Token.h#L7)
+定义位置：[Common.h](../include/c--/common/Common.h#L10)
 
 ```cpp
 enum class TokenType {
@@ -93,7 +92,7 @@ a         Identifier  Ident       a
 
 ## 3. LexResult 返回结构
 
-定义位置：[Result.h](../include/c--/common/Result.h#L12)
+定义位置：[Common.h](../include/c--/common/Common.h#L40)
 
 ```cpp
 struct LexResult {
@@ -1071,7 +1070,7 @@ EOF     EndOfFile   EOF       EOF
 可以用临时测试命令运行词法分析：
 
 ```bash
-make run-lexer INPUT=tests/case1_ok/input.sy
+make run-lexer INPUT=tests/ok_001_minimal_return.sy
 ```
 
 输出文件：
@@ -1101,4 +1100,3 @@ make run-lexer INPUT=tests/case1_ok/input.sy
 | 单词符号输出 | `result.tokens` |
 | 错误信息列表 | `result.errorMessage` |
 | 状态转换图 | `automata.cpp` 中构造出的最小化 DFA |
-

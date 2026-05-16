@@ -1,0 +1,5 @@
+int main() {
+    const int base = 3;
+    int value = 5;
+    return base + value;
+}
