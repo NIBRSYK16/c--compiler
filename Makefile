@@ -59,6 +59,7 @@ COMPILER_SRCS := \
 	src/lexer/lexer.cpp \
 	src/lexer/automata.cpp \
 	src/parser/parser.cpp \
+	src/semantic/SemanticAnalyzer.cpp \
 	src/ir/IRGenerator.cpp \
 	$(COMMON_SRCS) \
 	$(IR_LIB_SRCS)

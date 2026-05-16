@@ -31,6 +31,7 @@ struct Token {
 enum class Stage {
     Lex,
     Parse,
+    Semantic,
     IR,
     IDE,
     All
@@ -62,6 +63,12 @@ struct ParseResult {
 struct IRResult {
     bool success = false;
     std::string irText;
+    std::string errorMessage;
+};
+
+struct SemanticResult {
+    bool success = false;
+    std::vector<std::string> logs;
     std::string errorMessage;
 };
 

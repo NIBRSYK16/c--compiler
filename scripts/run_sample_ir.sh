@@ -90,6 +90,13 @@ check_ir_sample() {
                 record_fail "$name" "应在 IR 阶段失败，实际退出码 $compiler_code，阶段 $actual_stage"
             fi
             ;;
+        semantic_error_*)
+            if [ "$compiler_code" -ne 0 ] && [ "$actual_stage" = "semantic" ]; then
+                record_pass "$name" "按预期在 semantic 阶段失败"
+            else
+                record_fail "$name" "应在 semantic 阶段失败，实际退出码 $compiler_code，阶段 $actual_stage"
+            fi
+            ;;
         ir_invalid_*)
             if [ "$compiler_code" -eq 0 ]; then
                 check_ir_invalid_sample "$name" "$out_dir"

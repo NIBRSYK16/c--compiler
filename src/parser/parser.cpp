@@ -63,19 +63,6 @@ ASTNode* makeNode(const std::string& name, const std::string& value = "", int li
     return createNode(name, value, line, column);
 }
 
-std::string productionToString(const Production& production) {
-    std::ostringstream out;
-    out << production.lhs << " ->";
-    if (production.rhs.empty()) {
-        out << " " << EPSILON_SYMBOL;
-    } else {
-        for (size_t i = 0; i < production.rhs.size(); i++) {
-            out << " " << production.rhs[i];
-        }
-    }
-    return out.str();
-}
-
 class Grammar {
 public:
     std::vector<Production> productions;
@@ -883,6 +870,10 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
             table.actions.find(std::make_pair(state, lookahead));
 
         if (actionIt == table.actions.end()) {
+            std::ostringstream log;
+            log << logNo++ << "\t" << stackTopSymbol(valueStack) << "#" << lookahead << "\terror";
+            result.reduceLogs.push_back(log.str());
+
             std::ostringstream error;
             error << "Syntax error at line " << input[index].line
                   << ", column " << input[index].column
@@ -921,8 +912,7 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
             }
 
             std::ostringstream log;
-            log << logNo++ << "\t" << production.lhs << "#" << lookahead
-                << "\treduction " << productionToString(production);
+            log << logNo++ << "\t" << production.lhs << "#" << lookahead << "\treduction";
             result.reduceLogs.push_back(log.str());
 
             SemanticValue reduced = buildSemantic(production, rhs);
@@ -943,6 +933,10 @@ ParseResult Parser::parse(const std::vector<Token>& tokens) {
         }
 
         if (action.type == ActionType::Accept) {
+            std::ostringstream log;
+            log << logNo++ << "\t" << stackTopSymbol(valueStack) << "#" << lookahead << "\taccept";
+            result.reduceLogs.push_back(log.str());
+
             result.success = true;
             if (!valueStack.empty()) {
                 result.root.reset(valueStack.back().ast);

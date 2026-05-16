@@ -85,23 +85,49 @@ AST 节点约定：
 
 每行一个 token，格式：
 
-`<line>:<column>\t<type>\t<grammar>\t<attr>\t<lexeme>`
-
-### 4.2 reduce.txt
-
-每行一条规约记录，格式：
-
-`reduce: <ProductionName>`
+`<待测代码中的单词符号>\t<单词符号种别,单词符号内容>`
 
 例如：
 
-`reduce: PrimaryExp -> IntConst`
+```text
+int	<KW,1>
+a	<IDN,a>
+=	<OP,11>
+10	<INT,10>
+;	<SE,24>
+```
+
+其中 `KW` 表示关键字，`OP` 表示运算符，`SE` 表示界符，`IDN` 表示标识符，`INT` 表示整数，`FLOAT` 表示浮点数。
+
+### 4.2 reduce.txt
+
+每行一条 SLR 分析动作记录，格式：
+
+`<序号>\t<栈顶符号>#<面临输入符号>\t<执行动作>`
+
+例如：
+
+```text
+1	$#int	move
+2	Type#main	reduction
+35	Program#EOF	accept
+```
+
+其中执行动作为 `move`、`reduction`、`accept` 或 `error`。
 
 ### 4.3 ast.txt
 
 树状缩进格式，建议格式：
 
-`<NodeName>(<value>) [line:column]`
+`<NodeName> value=<value>`
+
+例如：
+
+```text
+CompUnit
+  FuncDef value=main
+    Type value=int
+```
 
 ### 4.4 output.ll
 

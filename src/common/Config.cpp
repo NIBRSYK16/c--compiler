@@ -11,6 +11,7 @@ namespace {
 bool isStageName(const std::string& text) {
     return text == "lexer" || text == "lex" ||
            text == "parser" || text == "parse" ||
+           text == "semantic" || text == "sem" ||
            text == "ir" ||
            text == "ide" ||
            text == "all";
@@ -22,6 +23,9 @@ Stage parseStageName(const std::string& text) {
     }
     if (text == "parser" || text == "parse") {
         return Stage::Parse;
+    }
+    if (text == "semantic" || text == "sem") {
+        return Stage::Semantic;
     }
     if (text == "ir") {
         return Stage::IR;
@@ -86,6 +90,8 @@ std::string stageToString(Stage stage) {
             return "lexer";
         case Stage::Parse:
             return "parser";
+        case Stage::Semantic:
+            return "semantic";
         case Stage::IR:
             return "ir";
         case Stage::IDE:
@@ -99,13 +105,14 @@ std::string stageToString(Stage stage) {
 void printHelp() {
     std::cout
         << "Usage:\n"
-        << "  c--compiler [lexer|parser|ir|ide|all] <file> [-o output_dir]\n"
+        << "  c--compiler [lexer|parser|semantic|ir|ide|all] <file> [-o output_dir]\n"
         << "  c--compiler <file> [-o output_dir]\n"
         << "\n"
         << "Modes:\n"
         << "  lexer   Run lexical analysis only and write token.txt.\n"
         << "  parser  Run lexer + parser and write token.txt, reduce.txt, ast.txt.\n"
-        << "  ir      Run lexer + parser + IR generation and write output.ll.\n"
+        << "  semantic Run lexer + parser + semantic analysis and write semantic.txt.\n"
+        << "  ir      Run lexer + parser + semantic analysis + IR generation and write output.ll.\n"
         << "  ide     Open the C-- terminal editor for the file.\n"
         << "  all     Same as ir. This is the default when mode is omitted.\n"
         << "\n"
@@ -113,6 +120,7 @@ void printHelp() {
         << "  c--compiler tests/ok_001_minimal_return.sy\n"
         << "  c--compiler lexer tests/ok_001_minimal_return.sy -o output/lex_case\n"
         << "  c--compiler parser tests/ok_001_minimal_return.sy\n"
+        << "  c--compiler semantic tests/ok_001_minimal_return.sy\n"
         << "  c--compiler ide tests/ok_001_minimal_return.sy\n";
 }
 

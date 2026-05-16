@@ -141,6 +141,46 @@ LexResult Lexer::tokenize(const std::string& source) {
             continue;
         }
 
+        if (current == '/' && pos + 1 < length && source[pos + 1] == '/') {
+            int begin = pos;
+            pos += 2;
+            while (pos < length && source[pos] != '\n') {
+                pos++;
+            }
+            updatePosition(source, begin, pos, line, column);
+            continue;
+        }
+
+        if (current == '/' && pos + 1 < length && source[pos + 1] == '*') {
+            int begin = pos;
+            int commentLine = line;
+            int commentColumn = column;
+            bool closed = false;
+
+            pos += 2;
+            while (pos + 1 < length) {
+                if (source[pos] == '*' && source[pos + 1] == '/') {
+                    pos += 2;
+                    closed = true;
+                    break;
+                }
+                pos++;
+            }
+
+            if (!closed) {
+                hasError = true;
+                errors << "Lexical error at line " << commentLine
+                       << ", column " << commentColumn
+                       << ": unterminated block comment.\n";
+                updatePosition(source, begin, length, line, column);
+                pos = length;
+                continue;
+            }
+
+            updatePosition(source, begin, pos, line, column);
+            continue;
+        }
+
         int state = dfa.start;
         int cursor = pos;
         int lastAcceptRule = -1;

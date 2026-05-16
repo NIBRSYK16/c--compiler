@@ -26,6 +26,8 @@ expected_ok_exit() {
         ok_011_block_scope) echo 1 ;;
         ok_012_line_comment) echo 11 ;;
         ok_013_block_comment) echo 6 ;;
+        ok_014_nested_if_else) echo 7 ;;
+        ok_015_logic_and_or) echo 2 ;;
         *) echo "unknown" ;;
     esac
 }
@@ -205,6 +207,9 @@ main() {
                 ;;
             ir_error_*)
                 check_error_sample "$sample" "$name" "$out_dir" "ir"
+                ;;
+            semantic_error_*)
+                check_error_sample "$sample" "$name" "$out_dir" "semantic"
                 ;;
             ir_invalid_*)
                 check_ir_invalid_sample "$sample" "$name" "$out_dir"

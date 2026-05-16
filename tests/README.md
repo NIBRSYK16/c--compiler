@@ -1,11 +1,12 @@
 # C-- 测试样例说明
 
-本目录用于回归测试词法分析、语法分析和中间代码生成。文件命名规则如下：
+本目录用于回归测试词法分析、语法分析、语义分析和中间代码生成。文件命名规则如下：
 
 - `ok_*.sy`：预期完整流程通过。
 - `lex_error_*.sy`：预期词法分析阶段失败。
 - `parse_error_*.sy`：预期词法通过、语法分析失败。
-- `ir_error_*.sy`：预期词法和语法通过、IR 生成失败。
+- `semantic_error_*.sy`：预期词法和语法通过、语义分析失败。
+- `ir_error_*.sy`：预期词法、语法和语义分析通过、IR 生成失败。
 - `ir_invalid_*.sy`：编译器流程可能返回成功，但生成的 LLVM IR 不能通过 `clang` 校验。
 
 注意：当前词法分析器支持 `//` 单行注释和 `/* ... */` 多行注释。注释会被跳过，不生成 token。
@@ -25,6 +26,8 @@
 | `ok_011_block_scope.sy` | 正确 | 无 | 代码块和局部作用域遮蔽 | 完整流程通过，退出码 1 |
 | `ok_012_line_comment.sy` | 正确 | 无 | `//` 单行注释 | 完整流程通过，退出码 11 |
 | `ok_013_block_comment.sy` | 正确 | 无 | `/* ... */` 多行注释 | 完整流程通过，退出码 6 |
+| `ok_014_nested_if_else.sy` | 正确 | 无 | 嵌套 `if/else` | 完整流程通过，退出码 7 |
+| `ok_015_logic_and_or.sy` | 正确 | 无 | `&&` / `||` 短路逻辑 | 完整流程通过，退出码 2 |
 | `lex_error_101_illegal_at.sy` | 错误 | lexer | 非法字符 `@` | 报词法错误 |
 | `lex_error_102_bad_float_dot.sy` | 错误 | lexer | 不完整浮点数 `1.` | 报词法错误 |
 | `lex_error_103_non_ascii.sy` | 错误 | lexer | 非 ASCII 标识符 | 报词法错误 |
@@ -40,14 +43,12 @@
 | `ir_error_301_float_init.sy` | 错误 | ir | 浮点常量初始化未支持 | 报 IR 生成错误 |
 | `ir_error_302_float_binary.sy` | 错误 | ir | 浮点运算未支持 | 报 IR 生成错误 |
 | `ir_error_303_forward_function_call.sy` | 错误 | ir | 函数先调用后定义 | 报未定义函数 |
-| `ir_error_304_undefined_variable.sy` | 错误 | ir | 未定义变量 | 报未定义变量 |
-| `ir_error_305_duplicate_global.sy` | 错误 | ir | 重复全局变量 | 报重复定义 |
-| `ir_error_306_call_arg_count.sy` | 错误 | ir | 函数调用实参数量错误 | 报参数数量不匹配 |
+| `semantic_error_304_undefined_variable.sy` | 错误 | semantic | 未定义变量 | 报未定义变量 |
+| `semantic_error_305_duplicate_global.sy` | 错误 | semantic | 重复全局变量 | 报重复定义 |
+| `semantic_error_306_call_arg_count.sy` | 错误 | semantic | 函数调用实参数量错误 | 报参数数量不匹配 |
 | `ir_error_307_float_decl_only.sy` | 错误 | ir | `float` 变量声明 | 当前 IR/第三方库对 `float` 支持不完整，可能报错或异常退出 |
 | `ir_error_308_global_variable.sy` | 错误 | ir | 全局变量声明、初始化、读写 | 当前全局变量 IR 输出存在异常退出风险 |
 | `ir_invalid_309_comparison_condition.sy` | 错误 | LLVM IR 校验 | 比较表达式作为 `if` 条件 | 编译器流程可能成功，但 `clang output.ll` 会报 `icmp ne i1 ..., i32 0` 类型错误 |
-| `ir_invalid_310_nested_if_duplicate_label.sy` | 错误 | LLVM IR 校验 | 嵌套 `if/else` | 编译器流程可能成功，但 IR 中会出现重复基本块 label |
-| `ir_invalid_311_logic_and_or.sy` | 错误 | LLVM IR 校验 | `&&` / `||` | 编译器流程可能成功，但当前逻辑运算生成的 IR 类型不匹配 |
 
 推荐单个样例测试方式：
 
@@ -55,6 +56,8 @@
 make c--compiler
 build/c--compiler tests/ok_001_minimal_return.sy -o output/sample_check
 ```
+
+运行成功后，输出目录中会包含 `token.txt`、`reduce.txt`、`ast.txt`、`semantic.txt` 和 `output.ll`。
 
 如果样例预期完整流程通过，可以继续编译运行 LLVM IR：
 

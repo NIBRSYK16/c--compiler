@@ -7,6 +7,7 @@
 #include "c--/common/Common.h"
 #include "c--/lexer/lexer.h"
 #include "c--/parser/parser.h"
+#include "c--/semantic/SemanticAnalyzer.h"
 #include "c--/ir/IRGenerator.h"
 
 using namespace cminus;
@@ -133,7 +134,34 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        // 5. 中间代码生成阶段
+        // 5. 语义分析阶段
+        std::cout << "[Info] Running semantic analyzer..." << std::endl;
+
+        SemanticAnalyzer semanticAnalyzer;
+        SemanticResult semanticResult = semanticAnalyzer.analyze(parseResult.root.get());
+
+        writeLines(semanticResult.logs, config.outputDir + "/semantic.txt");
+
+        if (!semanticResult.success) {
+            writeErrorAndRunInfo(
+                config,
+                config.outputDir,
+                "semantic",
+                semanticResult.errorMessage
+            );
+            return 1;
+        }
+
+        std::cout << "[Info] Semantic analysis finished." << std::endl;
+
+        if (config.stage == Stage::Semantic) {
+            writeRunInfo(config, config.outputDir, true, "");
+            std::cout << "[Info] Finished at semantic stage." << std::endl;
+            std::cout << "[Info] Results written to: " << config.outputDir << std::endl;
+            return 0;
+        }
+
+        // 6. 中间代码生成阶段
         std::cout << "[Info] Running IR generator..." << std::endl;
 
         IRGenerator irGenerator;
@@ -160,7 +188,7 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        // 6. 完整流程结束
+        // 7. 完整流程结束
         writeRunInfo(config, config.outputDir, true, "");
 
         std::cout << "[Info] Compilation pipeline finished successfully." << std::endl;
