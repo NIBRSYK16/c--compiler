@@ -8,14 +8,43 @@
 
 ```mermaid
 graph LR
-    A[Cminus source .sy] --> B[Lexer]
-    B --> C[token.txt]
-    C --> D[SLR Parser]
-    D --> E[AST ast.txt]
-    E --> F[SemanticAnalyzer]
-    F --> G[semantic.txt]
-    F --> H[IRGenerator]
-    H --> I[LLVM IR output.ll]
+    Source[Cminus source file] --> Driver[Command driver]
+
+    subgraph LexerModule
+        L1[Read source text] --> L2[Skip blanks and comments]
+        L2 --> L3[Minimized DFA scan]
+        L3 --> L4[Token list]
+    end
+
+    subgraph ParserModule
+        P1[Build grammar] --> P2[Build SLR table]
+        P2 --> P3[Shift reduce parse]
+        P3 --> P4[Build AST]
+    end
+
+    subgraph SemanticModule
+        S1[Traverse AST] --> S2[Scope stack]
+        S1 --> S3[Function table]
+        S2 --> S4[Type and symbol checks]
+        S3 --> S4
+    end
+
+    subgraph IRModule
+        I1[Visit AST nodes] --> I2[Call compiler_ir builder]
+        I2 --> I3[Build module functions blocks]
+        I3 --> I4[Print LLVM IR]
+    end
+
+    Driver --> L1
+    L4 --> TokenOut[token.txt]
+    L4 --> P1
+    P3 --> ReduceOut[reduce.txt]
+    P4 --> AstOut[ast.txt]
+    P4 --> S1
+    S4 --> SemanticOut[semantic.txt]
+    S4 --> I1
+    I4 --> IROut[output.ll]
+    Driver --> ErrorOut[error.txt and run_info.txt]
 ```
 
 项目主要目录划分如下：
@@ -39,6 +68,15 @@ third_part     课程提供的 compiler_ir 中端代码
 | 语法分析 | Token 序列 | `ParseResult`、`reduce.txt`、`ast.txt` | `src/parser` |
 | 语义分析 | AST | `SemanticResult`、`semantic.txt` | `src/semantic` |
 | IR 生成 | AST | `IRResult`、`output.ll` | `src/ir` |
+
+其中，正式提交时最关键的两个前端输出格式按大作业文档规定处理：
+
+```text
+token.txt:  单词符号<TAB><单词符号种别,单词符号内容>
+reduce.txt: 序号<TAB>栈顶符号#面临输入符号<TAB>执行动作
+```
+
+`reduce.txt` 中的执行动作只输出 `move`、`reduction`、`accept` 或 `error`，避免混入额外调试信息。
 
 这种分层的意义是：每个阶段既能独立测试，也能串成完整流程。出现错误时，主程序会停止后续阶段，并把错误阶段写入 `run_info.txt`，方便定位问题。
 
@@ -112,6 +150,24 @@ struct IRResult {
 - `src/lexer/automata.cpp`
 - `include/c--/lexer/automata.h`
 - `src/lexer/lexer.cpp`
+
+词法模块内部结构如下：
+
+```mermaid
+graph TD
+    R[Token rules] --> N1[Build NFA fragments]
+    N1 --> N2[Connect to global NFA start]
+    N2 --> D1[Subset construction]
+    D1 --> D2[DFA states]
+    D2 --> M1[Partition states]
+    M1 --> M2[Minimized DFA]
+    SourceText[Source text] --> Scan1[Skip blanks and comments]
+    Scan1 --> Scan2[Longest match by minimized DFA]
+    M2 --> Scan2
+    Scan2 --> Tok[Create Token objects]
+    Tok --> Out[token.txt]
+    Scan2 --> Err[Lexical error with line and column]
+```
 
 ### 3.2 自动机构造
 
@@ -195,12 +251,26 @@ Lexical error at line x, column y: unexpected character ...
 
 ```mermaid
 graph TD
-    A[Productions] --> B[Build FIRST]
-    B --> C[Build FOLLOW]
-    C --> D[Build LR0 item sets]
-    D --> E[Build SLR ACTION and GOTO]
-    E --> F[Parse tokens with stacks]
-    F --> G[Build AST on reduction]
+    G0[Grammar productions] --> G1[Collect terminals and nonterminals]
+    G1 --> F1[Build FIRST sets]
+    F1 --> F2[Build FOLLOW sets]
+    G0 --> I1[Create LR0 items]
+    I1 --> I2[Closure]
+    I2 --> I3[GOTO]
+    I3 --> I4[Canonical LR0 item sets]
+    F2 --> T1[Fill reduce actions by FOLLOW]
+    I4 --> T2[Fill shift and goto actions]
+    T1 --> T3[SLR ACTION table]
+    T2 --> T3
+    T2 --> T4[SLR GOTO table]
+    Tokens[Token list] --> P1[State stack]
+    Tokens --> P2[Semantic value stack]
+    T3 --> P3[Shift reduce accept error]
+    T4 --> P3
+    P1 --> P3
+    P2 --> P3
+    P3 --> Logs[reduce.txt]
+    P3 --> AST[Build AST on reduction]
 ```
 
 ### 4.2 文法和产生式
@@ -389,6 +459,25 @@ AST 是语法分析和后端之间的核心接口。只要 AST 节点类型和�
 
 早期实现中，一些语义错误可能在 IR 生成时才暴露，例如未定义变量、函数参数数量不匹配等。后来将语义分析独立出来，形成 `src/semantic/SemanticAnalyzer.cpp`。
 
+语义分析模块设计如下：
+
+```mermaid
+graph TD
+    ASTRoot[AST root CompUnit] --> Pass1[First pass collect globals and functions]
+    Pass1 --> FuncTable[Function table]
+    Pass1 --> GlobalScope[Global scope]
+    ASTRoot --> Pass2[Second pass check function bodies]
+    Pass2 --> ScopeStack[Scope stack]
+    ScopeStack --> Enter[Enter block push scope]
+    ScopeStack --> Exit[Leave block pop scope]
+    Pass2 --> Lookup[Lookup symbols from inner to outer]
+    Lookup --> Checks[Semantic checks]
+    FuncTable --> Checks
+    GlobalScope --> Checks
+    Checks --> Good[semantic.txt]
+    Checks --> Bad[error.txt semantic stage]
+```
+
 这样做有三个意义：
 
 - 错误阶段更清楚：语法正确但语义错误时，不会误报为 IR 生成错误。
@@ -456,19 +545,31 @@ IR 生成模块位于 `src/ir/IRGenerator.cpp`。它采用访问 AST 的方式�
 
 ```mermaid
 graph TD
-    A[ASTNode] --> B[IRVisitor visit]
-    B --> C{Node type}
-    C --> D[FuncDef creates Function and entry block]
-    C --> E[VarDecl uses alloca and store]
-    C --> F[BinaryExpr uses iadd isub icmp]
-    C --> G[IfStmt uses branches and blocks]
-    C --> H[ReturnStmt uses ret]
-    D --> I[Module]
-    E --> I
-    F --> I
-    G --> I
-    H --> I
-    I --> J[IRprinter writes output.ll]
+    Root[AST root] --> Visit[IRVisitor dispatch]
+    Visit --> Func[FuncDef visitor]
+    Visit --> Decl[VarDecl and ConstDecl visitor]
+    Visit --> Expr[Expression visitors]
+    Visit --> Ctrl[IfStmt visitor]
+    Visit --> Ret[ReturnStmt visitor]
+    Func --> F1[Create Function]
+    F1 --> F2[Create entry basic block]
+    F2 --> LocalTable[Local symbol table]
+    Decl --> A1[Create alloca]
+    Decl --> A2[Store initial value]
+    A1 --> LocalTable
+    Expr --> V1[Evaluate child nodes]
+    V1 --> V2[Push and pop Value stack]
+    V2 --> V3[Create arithmetic or compare instructions]
+    Ctrl --> C1[Create then else merge blocks]
+    C1 --> C2[Create conditional branch]
+    Ret --> R1[Create ret instruction]
+    F2 --> Module[LLVM Module]
+    A2 --> Module
+    V3 --> Module
+    C2 --> Module
+    R1 --> Module
+    Module --> Print[IRprinter]
+    Print --> Out[output.ll]
 ```
 
 `IRGenerator::generate` 对外只暴露一个入口：
@@ -513,11 +614,19 @@ else block -> merge block
 
 ```mermaid
 graph TD
-    A[Evaluate a] --> B{a not zero}
-    B -->|true| C[Evaluate b]
-    B -->|false| D[Result is 0]
-    C --> E[Merge by phi]
-    D --> E
+    Entry[Current block] --> EvalLeft[Evaluate left expression]
+    EvalLeft --> LeftBool[Compare left with zero]
+    LeftBool --> Branch{left is true}
+    Branch -->|true| ThenBB[and_then block]
+    Branch -->|false| ElseBB[and_else block]
+    ThenBB --> EvalRight[Evaluate right expression]
+    EvalRight --> RightBool[Compare right with zero]
+    RightBool --> MergeBB[and_merge block]
+    ElseBB --> FalseValue[Constant false]
+    FalseValue --> MergeBB
+    MergeBB --> Phi[phi chooses rightBool or false]
+    Phi --> Zext[Convert i1 to i32]
+    Zext --> Result[Push result value]
 ```
 
 逻辑或 `a || b` 则相反：如果左值为真，直接得到真；只有左值为假时才计算右表达式。
